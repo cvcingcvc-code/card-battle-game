@@ -96,56 +96,28 @@
   </div>
 </div>
 
+<script src="./game.js"></script>
 <script>
-class Card {
-  constructor(name, attack, hp) {
-    this.name = name;
-    this.attack = attack;
-    this.hp = hp;
-    this.maxHp = hp;
-  }
-  isAlive() { return this.hp > 0; }
-}
+const {
+  createGame,
+  isCardAlive,
+  isPlayerAlive,
+  selectAttacker: selectGameAttacker,
+  playPlayerAttack,
+  playAiTurn,
+} = window.CardBattleGame;
 
-class Player {
-  constructor(name, cards) {
-    this.name = name;
-    this.cards = cards;
-  }
-  aliveCards() { return this.cards.filter(c => c.isAlive()); }
-  isAlive() { return this.aliveCards().length > 0; }
-}
-
-// 初始数据
-function createDecks() {
-  return [
-    new Player('玩家A', [
-      new Card('龙', 15, 100),
-      new Card('精灵射手', 30, 40),
-      new Card('石像鬼', 10, 80),
-    ]),
-    new Player('玩家B', [
-      new Card('骑士', 25, 60),
-      new Card('暗影刺客', 40, 25),
-      new Card('巨魔', 12, 90),
-    ]),
-  ];
-}
-
-let players = createDecks();
-let currentPlayerIdx = 0; // 0 = 玩家A (你), 1 = 玩家B (AI)
-let selectedCardIdx = null; // 你选中的攻击卡牌索引
-let gameOver = false;
+let game = createGame();
 
 function render() {
   // 渲染双方卡牌
   for (let p = 0; p < 2; p++) {
     const container = document.getElementById(`cards${p + 1}`);
     container.innerHTML = '';
-    players[p].cards.forEach((card, i) => {
+    game.players[p].cards.forEach((card, i) => {
       const el = document.createElement('div');
       el.className = 'card';
-      if (!card.isAlive()) el.className += ' dead';
+      if (!isCardAlive(card)) el.className += ' dead';
 
       const hpPct = (card.hp / card.maxHp) * 100;
       let hpClass = '';
@@ -164,12 +136,12 @@ function render() {
       `;
 
       // 点击事件
-      if (!gameOver) {
-        if (p === currentPlayerIdx && card.isAlive()) {
+      if (!game.gameOver) {
+        if (p === game.currentPlayerIdx && isCardAlive(card)) {
           // 当前玩家的卡牌，可选中为攻击者
           el.className += ' yours selectable';
           el.onclick = () => selectAttacker(p, i);
-        } else if (p !== currentPlayerIdx && card.isAlive() && selectedCardIdx !== null) {
+        } else if (p !== game.currentPlayerIdx && isCardAlive(card) && game.selectedCardIdx !== null) {
           // 对方卡牌，可作为攻击目标
           el.className += ' enemy';
           el.onclick = () => executeAttack(p, i);
@@ -177,7 +149,7 @@ function render() {
       }
 
       // 选中高亮
-      if (p === currentPlayerIdx && i === selectedCardIdx) {
+      if (p === game.currentPlayerIdx && i === game.selectedCardIdx) {
         el.className += ' selected';
       }
 
@@ -188,20 +160,20 @@ function render() {
   // 回合高亮
   document.getElementById('zone1').className = 'player-zone';
   document.getElementById('zone2').className = 'player-zone';
-  if (!gameOver) {
-    document.getElementById(`zone${currentPlayerIdx + 1}`).classList.add('active');
+  if (!game.gameOver) {
+    document.getElementById(`zone${game.currentPlayerIdx + 1}`).classList.add('active');
   }
-  if (!players[0].isAlive()) document.getElementById('zone1').classList.add('defeated');
-  if (!players[1].isAlive()) document.getElementById('zone2').classList.add('defeated');
+  if (!isPlayerAlive(game.players[0])) document.getElementById('zone1').classList.add('defeated');
+  if (!isPlayerAlive(game.players[1])) document.getElementById('zone2').classList.add('defeated');
 
   // 提示
   const hint = document.getElementById('hint');
-  if (gameOver) {
-    const winner = players[0].isAlive() ? players[0] : players[1];
+  if (game.gameOver) {
+    const winner = game.players[game.winnerIdx];
     hint.textContent = `战斗结束！${winner.name} 获胜`;
     hint.style.color = '#f5c518';
-  } else if (currentPlayerIdx === 0) {
-    hint.textContent = selectedCardIdx === null
+  } else if (game.currentPlayerIdx === 0) {
+    hint.textContent = game.selectedCardIdx === null
       ? '选择你的一张卡牌作为攻击者'
       : '点击对手的卡牌选择攻击目标';
     hint.style.color = '#888';
@@ -212,82 +184,40 @@ function render() {
 }
 
 function selectAttacker(playerIdx, cardIdx) {
-  if (gameOver || playerIdx !== currentPlayerIdx) return;
-  selectedCardIdx = cardIdx;
-  render();
+  if (selectGameAttacker(game, playerIdx, cardIdx)) render();
 }
 
 function executeAttack(targetPlayerIdx, targetCardIdx) {
-  if (gameOver || selectedCardIdx === null) return;
-
-  const attacker = players[currentPlayerIdx];
-  const defender = players[targetPlayerIdx];
-  const attackCard = attacker.cards[selectedCardIdx];
-  const targetCard = defender.cards[targetCardIdx];
-
-  if (!attackCard.isAlive() || !targetCard.isAlive()) {
-    selectedCardIdx = null;
-    render();
-    return;
-  }
-
-  // 执行攻击
-  targetCard.hp = Math.max(0, targetCard.hp - attackCard.attack);
-  addLog(`${attacker.name} 的 ${attackCard.name} 攻击 ${defender.name} 的 ${targetCard.name}，造成 ${attackCard.attack} 点伤害`,
-    targetCard.isAlive() ? 'log-hit' : 'log-kill');
-
-  if (!targetCard.isAlive()) {
-    addLog(`${targetCard.name} 被击倒！`, 'log-kill');
-  }
-
-  selectedCardIdx = null;
-
-  // 检查游戏结束
-  if (!defender.isAlive()) {
-    gameOver = true;
-    addLog(`=== ${attacker.name} 获胜！ ===`, 'log-kill');
-    render();
-    return;
-  }
-
-  // 切换回合
-  currentPlayerIdx = targetPlayerIdx;
+  const events = playPlayerAttack(game, targetPlayerIdx, targetCardIdx);
+  renderEvents(events);
   render();
 
   // AI 回合
-  if (currentPlayerIdx === 1 && !gameOver) {
+  if (game.currentPlayerIdx === 1 && !game.gameOver) {
     setTimeout(aiTurn, 800);
   }
 }
 
 function aiTurn() {
-  if (gameOver || currentPlayerIdx !== 1) return;
-  const ai = players[1];
-  const human = players[0];
-
-  const aliveAi = ai.aliveCards();
-  const aliveHuman = human.aliveCards();
-  if (aliveAi.length === 0 || aliveHuman.length === 0) return;
-
-  // AI 策略：选攻击力最高的，攻击对方血量最低的
-  const attacker = aliveAi.reduce((a, b) => a.attack > b.attack ? a : b);
-  const target = aliveHuman.reduce((a, b) => a.hp < b.hp ? a : b);
-
-  target.hp = Math.max(0, target.hp - attacker.attack);
-  addLog(`${ai.name} 的 ${attacker.name} 攻击 ${human.name} 的 ${target.name}，造成 ${attacker.attack} 点伤害`,
-    target.isAlive() ? 'log-hit' : 'log-kill');
-
-  if (!target.isAlive()) {
-    addLog(`${target.name} 被击倒！`, 'log-kill');
-  }
-
-  if (!human.isAlive()) {
-    gameOver = true;
-    addLog(`=== ${ai.name} 获胜！ ===`, 'log-kill');
-  }
-
-  currentPlayerIdx = 0;
+  renderEvents(playAiTurn(game));
   render();
+}
+
+function renderEvents(events) {
+  events.forEach((event) => {
+    if (event.type === 'attack') {
+      const attacker = game.players[event.attackerPlayerIdx];
+      const attackerCard = attacker.cards[event.attackerCardIdx];
+      const defender = game.players[event.targetPlayerIdx];
+      const targetCard = defender.cards[event.targetCardIdx];
+
+      addLog(`${attacker.name} 的 ${attackerCard.name} 攻击 ${defender.name} 的 ${targetCard.name}，造成 ${event.damage} 点伤害`,
+        event.killedCardName ? 'log-kill' : 'log-hit');
+      if (event.killedCardName) addLog(`${event.killedCardName} 被击倒！`, 'log-kill');
+    } else if (event.type === 'victory') {
+      addLog(`=== ${game.players[event.winnerIdx].name} 获胜！ ===`, 'log-kill');
+    }
+  });
 }
 
 function addLog(msg, cls) {
@@ -300,10 +230,7 @@ function addLog(msg, cls) {
 }
 
 function resetGame() {
-  players = createDecks();
-  currentPlayerIdx = 0;
-  selectedCardIdx = null;
-  gameOver = false;
+  game = createGame();
   document.getElementById('log').innerHTML = '';
   addLog('新战斗开始！', 'log-info');
   render();
