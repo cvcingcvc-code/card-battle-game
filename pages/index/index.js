@@ -5,21 +5,27 @@ const {
   playAiTurn,
   playPlayerAttack,
   selectAttacker,
+  useSelectedCardSkill,
 } = require('../../game');
 
 function decorateCard(card, playerIndex, cardIndex, game) {
   const hpPercent = Math.round((card.hp / card.maxHp) * 100);
+  const canSelect = playerIndex === 0 && game.currentPlayerIdx === 0 && !game.gameOver && card.hp > 0;
+  const canTarget = playerIndex === 1
+    && game.currentPlayerIdx === 0
+    && game.selectedCardIdx !== null
+    && !game.gameOver
+    && card.hp > 0;
+  const isSelected = playerIndex === 0 && game.selectedCardIdx === cardIndex;
   return {
     ...card,
     hpPercent,
     isDead: card.hp <= 0,
-    isSelected: playerIndex === 0 && game.selectedCardIdx === cardIndex,
-    canSelect: playerIndex === 0 && game.currentPlayerIdx === 0 && !game.gameOver && card.hp > 0,
-    canTarget: playerIndex === 1
-      && game.currentPlayerIdx === 0
-      && game.selectedCardIdx !== null
-      && !game.gameOver
-      && card.hp > 0,
+    isSelected,
+    canSelect,
+    canTarget,
+    hoverClass: canSelect || canTarget ? 'card-pressed' : 'none',
+    ariaLabel: `${card.name}，攻击 ${card.attack}，生命 ${card.hp}/${card.maxHp}${card.hp <= 0 ? '，已倒下' : isSelected ? '，已选为攻击者' : canTarget ? '，可选为攻击目标' : canSelect ? '，可选为攻击者' : ''}`,
     healthTone: hpPercent <= 25 ? 'critical' : hpPercent <= 50 ? 'low' : '',
   };
 }
@@ -49,6 +55,7 @@ function getStatus(game) {
 Page({
   data: {
     players: [],
+    selectedSkill: null,
     logs: [],
     logScrollTarget: '',
     turnLabel: '你的回合',
@@ -79,8 +86,18 @@ Page({
         decorateCard(card, playerIndex, cardIndex, this.game)
       )),
     })).reverse();
+    const selectedCard = this.game.selectedCardIdx === null
+      ? null
+      : this.game.players[0].cards[this.game.selectedCardIdx];
+    const selectedSkill = selectedCard && selectedCard.skill
+      ? {
+        ...selectedCard.skill,
+        canUse: !this.game.gameOver && this.game.currentPlayerIdx === 0 && !selectedCard.skill.used,
+      }
+      : null;
     this.setData({
       players,
+      selectedSkill,
       ...getStatus(this.game),
       gameOver: this.game.gameOver,
     });
@@ -100,7 +117,18 @@ Page({
     if (events.length === 0) return;
     this.addEvents(events);
     this.updateView();
+    this.scheduleAiTurn();
+  },
 
+  onUseSkill() {
+    const events = useSelectedCardSkill(this.game);
+    if (events.length === 0) return;
+    this.addEvents(events);
+    this.updateView();
+    this.scheduleAiTurn();
+  },
+
+  scheduleAiTurn() {
     if (this.game.currentPlayerIdx === 1 && !this.game.gameOver) {
       this.aiTimer = setTimeout(() => this.runAiTurn(), 600);
     }
@@ -116,13 +144,14 @@ Page({
 
   addEvents(events) {
     events.forEach((event) => {
-      if (event.type === 'attack') {
+      if (event.type === 'attack' || event.type === 'skill') {
         const attacker = this.game.players[event.attackerPlayerIdx];
         const target = this.game.players[event.targetPlayerIdx];
         const attackerCard = attacker.cards[event.attackerCardIdx];
         const targetCard = target.cards[event.targetCardIdx];
+        const action = event.type === 'skill' ? `施放 ${event.skillName} 攻击` : '攻击';
         this.addLog(
-          `${attacker.name} 的 ${attackerCard.name} 攻击 ${target.name} 的 ${targetCard.name}，造成 ${event.damage} 点伤害。`,
+          `${attacker.name} 的 ${attackerCard.name} ${action} ${target.name} 的 ${targetCard.name}，造成 ${event.damage} 点伤害。`,
           event.killedCardName ? 'kill' : 'hit',
         );
         if (event.killedCardName) this.addLog(`${event.killedCardName} 被击倒！`, 'kill');

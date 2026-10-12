@@ -58,7 +58,32 @@ test('restarting restores cards and cancels a pending AI action', () => {
   assert.equal(page.aiTimer, null);
   assert.equal(page.game.players[0].cards[0].hp, 100);
   assert.equal(page.game.players[1].cards[0].hp, 60);
+  assert.equal(page.game.players[0].cards[0].skill.used, false);
   assert.equal(page.game.currentPlayerIdx, 0);
   assert.equal(page.data.logs.length, 1);
+  page.onUnload();
+});
+
+test('mini-program exposes Dragon Flame and logs its area damage', () => {
+  const page = createPageHarness();
+  tapCard(page, 0, 0);
+
+  assert.equal(page.data.selectedSkill.name, '龙焰');
+  assert.equal(page.data.selectedSkill.canUse, true);
+  const dragon = page.data.players.find((team) => team.playerIndex === 0).cards[0];
+  assert.match(dragon.ariaLabel, /已选为攻击者/);
+  page.onUseSkill();
+
+  assert.deepEqual(page.game.players[1].cards.map((card) => card.hp), [48, 13, 78]);
+  assert.equal(page.game.players[0].cards[0].skill.used, true);
+  assert.equal(page.data.selectedSkill, null);
+  assert.equal(page.data.statusTone, 'waiting');
+  assert.equal(page.data.logs.filter((entry) => entry.message.includes('龙焰')).length, 3);
+
+  clearTimeout(page.aiTimer);
+  page.runAiTurn();
+  tapCard(page, 0, 0);
+  assert.equal(page.data.selectedSkill.used, true);
+  assert.equal(page.data.selectedSkill.canUse, false);
   page.onUnload();
 });

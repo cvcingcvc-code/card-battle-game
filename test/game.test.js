@@ -9,6 +9,7 @@ const {
   playAiTurn,
   playPlayerAttack,
   selectAttacker,
+  useSelectedCardSkill,
 } = require('../game');
 
 test('creates the two starting teams and gives the player the first turn', () => {
@@ -51,6 +52,39 @@ test('AI uses its strongest living card against the player card with the least h
   assert.equal(events[0].killedCardName, '精灵射手');
   assert.equal(game.players[0].cards[1].hp, 0);
   assert.equal(game.currentPlayerIdx, 0);
+});
+
+test('Dragon Flame damages every living enemy once and hands the turn to the AI', () => {
+  const game = createGame();
+  selectAttacker(game, 0, 0);
+
+  const events = useSelectedCardSkill(game);
+
+  assert.equal(events.length, 3);
+  assert.deepEqual(events.map((event) => event.damage), [12, 12, 12]);
+  assert.deepEqual(game.players[1].cards.map((card) => card.hp), [48, 13, 78]);
+  assert.equal(game.players[0].cards[0].skill.used, true);
+  assert.equal(game.selectedCardIdx, null);
+  assert.equal(game.currentPlayerIdx, 1);
+
+  playAiTurn(game);
+  selectAttacker(game, 0, 0);
+  assert.deepEqual(useSelectedCardSkill(game), []);
+});
+
+test('Dragon Flame can win the game by defeating the last living enemy', () => {
+  const game = createGame();
+  game.players[1].cards[0].hp = 0;
+  game.players[1].cards[1].hp = 0;
+  game.players[1].cards[2].hp = 10;
+  selectAttacker(game, 0, 0);
+
+  const events = useSelectedCardSkill(game);
+
+  assert.equal(game.players[1].cards[2].hp, 0);
+  assert.equal(game.gameOver, true);
+  assert.equal(game.winnerIdx, 0);
+  assert.deepEqual(events.at(-1), { type: 'victory', winnerIdx: 0 });
 });
 
 test('ends the game when a player attack defeats the last AI card', () => {

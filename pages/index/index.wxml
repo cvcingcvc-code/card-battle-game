@@ -20,7 +20,10 @@
     <view class="card-row">
       <view wx:for="{{team.cards}}" wx:for-item="card" wx:for-index="cardIndex" wx:key="name"
         class="unit-card {{card.isDead ? 'is-dead' : ''}} {{card.isSelected ? 'is-selected' : ''}} {{card.canTarget ? 'is-targetable' : ''}}"
-        bindtap="onCardTap" data-player-index="{{team.playerIndex}}" data-card-index="{{cardIndex}}">
+        bindtap="onCardTap" data-player-index="{{team.playerIndex}}" data-card-index="{{cardIndex}}"
+        aria-role="{{card.canSelect || card.canTarget ? 'button' : 'text'}}" aria-label="{{card.ariaLabel}}"
+        aria-pressed="{{card.isSelected}}"
+        hover-class="{{card.hoverClass}}" hover-stay-time="100">
         <view class="card-heading">
           <text class="card-name">{{card.name}}</text>
           <text class="attack-value">{{card.attack}}</text>
@@ -45,6 +48,17 @@
     </view>
   </view>
 
+  <view wx:if="{{selectedSkill}}" class="skill-panel">
+    <view class="skill-copy">
+      <text class="skill-name">{{selectedSkill.name}}</text>
+      <text class="skill-description">{{selectedSkill.description}}</text>
+    </view>
+    <button class="skill-button" disabled="{{!selectedSkill.canUse}}" bindtap="onUseSkill"
+      hover-class="skill-button-pressed" hover-stay-time="100">
+      {{selectedSkill.used ? '本局已使用' : '释放技能'}}
+    </button>
+  </view>
+
   <view class="log-section">
     <view class="log-heading">
       <text class="log-title">战斗记录</text>
@@ -57,5 +71,5 @@
     </scroll-view>
   </view>
 
-  <button class="reset-button" bindtap="onReset">重新开始</button>
+  <button class="reset-button" bindtap="onReset" hover-class="reset-button-pressed" hover-stay-time="100">重新开始</button>
 </view>

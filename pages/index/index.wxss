@@ -28,7 +28,7 @@
 
 .turn-label {
   color: #aab5b0;
-  font-size: 22rpx;
+  font-size: 24rpx;
 }
 
 .status-banner {
@@ -38,7 +38,7 @@
   border-left: 4rpx solid #d7aa53;
   background: #1a2224;
   color: #dbe2dd;
-  font-size: 23rpx;
+  font-size: 24rpx;
 }
 
 .status-banner.target,
@@ -73,7 +73,7 @@
 .team-role {
   margin-top: 4rpx;
   color: #93a09b;
-  font-size: 20rpx;
+  font-size: 22rpx;
 }
 
 .enemy-team .team-index {
@@ -85,13 +85,13 @@
 }
 
 .team-index {
-  font-size: 22rpx;
+  font-size: 24rpx;
   font-weight: 700;
 }
 
 .card-row {
   display: flex;
-  gap: 12rpx;
+  gap: 20rpx;
   width: 100%;
 }
 
@@ -123,6 +123,10 @@
   opacity: 0.42;
 }
 
+.card-pressed {
+  opacity: 0.76;
+}
+
 .card-heading {
   align-items: flex-start;
   gap: 4rpx;
@@ -147,13 +151,13 @@
   display: block;
   margin-top: 2rpx;
   color: #87938f;
-  font-size: 17rpx;
+  font-size: 20rpx;
 }
 
 .health-label {
   margin-top: 20rpx;
   color: #b9c4be;
-  font-size: 17rpx;
+  font-size: 20rpx;
   font-variant-numeric: tabular-nums;
 }
 
@@ -183,7 +187,7 @@
   display: block;
   margin-top: 8rpx;
   color: #b5c0ba;
-  font-size: 16rpx;
+  font-size: 20rpx;
   text-align: right;
 }
 
@@ -203,6 +207,67 @@
   background: #394143;
 }
 
+.skill-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14rpx;
+  margin-top: 18rpx;
+  padding: 14rpx 16rpx;
+  border: 1rpx solid #6e5e3d;
+  border-radius: 6rpx;
+  background: #211f1a;
+}
+
+.skill-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.skill-name,
+.skill-description {
+  display: block;
+}
+
+.skill-name {
+  color: #f0bf63;
+  font-size: 23rpx;
+  font-weight: 700;
+}
+
+.skill-description {
+  margin-top: 6rpx;
+  color: #bac1bb;
+  font-size: 24rpx;
+  line-height: 1.4;
+}
+
+.skill-button {
+  flex: 0 0 auto;
+  width: 170rpx;
+  height: 112rpx;
+  margin: 0;
+  padding: 0 8rpx;
+  border: 0;
+  border-radius: 6rpx;
+  background: #8c6730;
+  color: #fff8e9;
+  font-size: 22rpx;
+  line-height: 112rpx;
+}
+
+.skill-button[disabled] {
+  opacity: 0.48;
+}
+
+.skill-button-pressed {
+  background: #a07b3e;
+}
+
+.skill-button::after {
+  border: 0;
+}
+
 .log-section {
   margin-top: 30rpx;
 }
@@ -219,7 +284,7 @@
 
 .log-count {
   color: #87938f;
-  font-size: 19rpx;
+  font-size: 22rpx;
 }
 
 .log-panel {
@@ -234,7 +299,7 @@
 .log-entry {
   padding: 6rpx 0;
   color: #aab5b0;
-  font-size: 19rpx;
+  font-size: 24rpx;
   line-height: 1.55;
 }
 
@@ -249,14 +314,18 @@
 }
 
 .reset-button {
-  height: 82rpx;
+  height: 112rpx;
   margin-top: 22rpx;
   border: 1rpx solid #52605d;
   border-radius: 6rpx;
   background: #26312f;
   color: #e8ece9;
   font-size: 25rpx;
-  line-height: 80rpx;
+  line-height: 110rpx;
+}
+
+.reset-button-pressed {
+  background: #34423f;
 }
 
 .reset-button::after {
