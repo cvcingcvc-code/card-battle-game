@@ -87,3 +87,30 @@ test('mini-program exposes Dragon Flame and logs its area damage', () => {
   assert.equal(page.data.selectedSkill.canUse, false);
   page.onUnload();
 });
+
+test('page announces the turn flow and presents a clear terminal state', () => {
+  const page = createPageHarness();
+  assert.match(page.data.statusText, /选择一张己方卡牌/);
+
+  page.game.players[1].cards[0].hp = 0;
+  page.game.players[1].cards[1].hp = 0;
+  page.game.players[1].cards[2].hp = 5;
+  page.updateView();
+  tapCard(page, 0, 1);
+  assert.match(page.data.statusText, /选择对手目标/);
+  tapCard(page, 1, 2);
+
+  assert.equal(page.data.gameOver, true);
+  assert.equal(page.data.turnLabel, '战斗结束');
+  assert.equal(page.data.statusTone, 'victory');
+  assert.match(page.data.statusText, /玩家A 获胜/);
+  const enemy = page.data.players.find((team) => team.playerIndex === 1);
+  assert.equal(enemy.cards[2].isDead, true);
+  assert.match(enemy.cards[2].ariaLabel, /已倒下/);
+
+  page.onReset();
+  assert.equal(page.data.gameOver, false);
+  assert.equal(page.data.statusText, '选择一张己方卡牌作为攻击者');
+  assert.equal(page.data.logs.length, 1);
+  page.onUnload();
+});

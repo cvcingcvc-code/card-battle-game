@@ -4,7 +4,7 @@
     <text class="turn-label">{{turnLabel}}</text>
   </view>
 
-  <view class="status-banner {{statusTone}}">
+  <view class="status-banner {{statusTone}}" aria-role="status" aria-live="polite">
     <text>{{statusText}}</text>
   </view>
 
