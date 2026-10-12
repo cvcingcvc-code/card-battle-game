@@ -14,9 +14,15 @@ function createGame() {
             attack: 15,
             hp: 100,
             maxHp: 100,
-            skill: { name: '龙焰', description: '对所有存活敌人造成 12 点伤害', damage: 12, used: false },
+            skill: { name: '龙焰', description: '对所有存活敌人造成 12 点伤害', damage: 12, targetMode: 'all', used: false },
           },
-          { name: '精灵射手', attack: 30, hp: 40, maxHp: 40 },
+          {
+            name: '精灵射手',
+            attack: 30,
+            hp: 40,
+            maxHp: 40,
+            skill: { name: '精准射击', description: '对选定敌人造成 50 点伤害', damage: 50, targetMode: 'single', used: false },
+          },
           { name: '石像鬼', attack: 10, hp: 80, maxHp: 80 },
         ],
       },
@@ -102,16 +108,20 @@ function playPlayerAttack(game, targetPlayerIdx, targetCardIdx) {
   return events;
 }
 
-function useSelectedCardSkill(game) {
+function useSelectedCardSkill(game, targetCardIdx) {
   if (game.gameOver || game.currentPlayerIdx !== PLAYER || game.selectedCardIdx === null) return [];
 
   const attackerCardIdx = game.selectedCardIdx;
   const attacker = game.players[PLAYER].cards[attackerCardIdx];
   if (!isCardAlive(attacker) || !attacker.skill || attacker.skill.used) return [];
 
-  const targets = game.players[AI].cards
-    .map((card, cardIdx) => ({ card, cardIdx }))
-    .filter(({ card }) => isCardAlive(card));
+  const targets = attacker.skill.targetMode === 'single'
+    ? Number.isInteger(targetCardIdx) && isCardAlive(game.players[AI].cards[targetCardIdx])
+      ? [{ card: game.players[AI].cards[targetCardIdx], cardIdx: targetCardIdx }]
+      : []
+    : game.players[AI].cards
+      .map((card, cardIdx) => ({ card, cardIdx }))
+      .filter(({ card }) => isCardAlive(card));
   if (targets.length === 0) return [];
 
   attacker.skill.used = true;

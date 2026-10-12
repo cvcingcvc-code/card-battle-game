@@ -88,6 +88,36 @@ test('mini-program exposes Dragon Flame and logs its area damage', () => {
   page.onUnload();
 });
 
+test('Precision Shot lets the player choose and cancel a single target', () => {
+  const page = createPageHarness();
+  tapCard(page, 0, 1);
+
+  assert.equal(page.data.selectedSkill.name, '精准射击');
+  assert.equal(page.data.selectedSkill.isTargeted, true);
+  assert.equal(page.data.selectedSkill.buttonLabel, '选择目标');
+  page.onUseSkill();
+  assert.equal(page.data.skillTargeting, true);
+  assert.equal(page.data.selectedSkill.buttonLabel, '取消选择');
+  assert.match(page.data.statusText, /选择对手目标释放精准射击/);
+  const enemy = page.data.players.find((team) => team.playerIndex === 1);
+  assert.match(enemy.cards[0].ariaLabel, /可选为技能目标/);
+
+  page.onUseSkill();
+  assert.equal(page.data.skillTargeting, false);
+  assert.equal(page.game.players[1].cards[0].hp, 60);
+
+  page.onUseSkill();
+  tapCard(page, 1, 0);
+  assert.equal(page.game.players[1].cards[0].hp, 10);
+  assert.equal(page.game.players[1].cards[1].hp, 25);
+  assert.equal(page.game.players[0].cards[1].skill.used, true);
+  assert.equal(page.data.statusTone, 'waiting');
+  assert.ok(page.data.logs.some((entry) => entry.message.includes('精准射击')));
+
+  clearTimeout(page.aiTimer);
+  page.onUnload();
+});
+
 test('page announces the turn flow and presents a clear terminal state', () => {
   const page = createPageHarness();
   assert.match(page.data.statusText, /选择一张己方卡牌/);

@@ -72,6 +72,55 @@ test('Dragon Flame damages every living enemy once and hands the turn to the AI'
   assert.deepEqual(useSelectedCardSkill(game), []);
 });
 
+test('Precision Shot deals 50 damage to one chosen enemy and uses the player turn', () => {
+  const game = createGame();
+  selectAttacker(game, 0, 1);
+
+  const events = useSelectedCardSkill(game, 0);
+
+  assert.equal(events.length, 1);
+  assert.equal(events[0].type, 'skill');
+  assert.equal(events[0].skillName, '精准射击');
+  assert.equal(events[0].targetCardIdx, 0);
+  assert.equal(events[0].damage, 50);
+  assert.equal(game.players[1].cards[0].hp, 10);
+  assert.equal(game.players[1].cards[1].hp, 25);
+  assert.equal(game.players[0].cards[1].skill.used, true);
+  assert.equal(game.selectedCardIdx, null);
+  assert.equal(game.currentPlayerIdx, 1);
+
+  game.currentPlayerIdx = 0;
+  selectAttacker(game, 0, 1);
+  assert.deepEqual(useSelectedCardSkill(game, 0), []);
+});
+
+test('Precision Shot rejects missing or defeated targets without consuming the skill', () => {
+  const game = createGame();
+  game.players[1].cards[1].hp = 0;
+  selectAttacker(game, 0, 1);
+
+  assert.deepEqual(useSelectedCardSkill(game), []);
+  assert.deepEqual(useSelectedCardSkill(game, 1), []);
+  assert.deepEqual(useSelectedCardSkill(game, 99), []);
+  assert.equal(game.players[0].cards[1].skill.used, false);
+  assert.equal(game.players[1].cards[0].hp, 60);
+});
+
+test('Precision Shot ends the game when it defeats the last living enemy', () => {
+  const game = createGame();
+  game.players[1].cards[0].hp = 0;
+  game.players[1].cards[1].hp = 0;
+  game.players[1].cards[2].hp = 40;
+  selectAttacker(game, 0, 1);
+
+  const events = useSelectedCardSkill(game, 2);
+
+  assert.equal(game.gameOver, true);
+  assert.equal(game.winnerIdx, 0);
+  assert.equal(events.at(-1).type, 'victory');
+  assert.equal(events.at(-1).winnerIdx, 0);
+});
+
 test('Dragon Flame can win the game by defeating the last living enemy', () => {
   const game = createGame();
   game.players[1].cards[0].hp = 0;

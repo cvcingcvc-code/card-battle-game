@@ -8,7 +8,7 @@ const {
   useSelectedCardSkill,
 } = require('../../game');
 
-function decorateCard(card, playerIndex, cardIndex, game) {
+function decorateCard(card, playerIndex, cardIndex, game, skillTargeting) {
   const hpPercent = Math.round((card.hp / card.maxHp) * 100);
   const canSelect = playerIndex === 0 && game.currentPlayerIdx === 0 && !game.gameOver && card.hp > 0;
   const canTarget = playerIndex === 1
@@ -17,6 +17,7 @@ function decorateCard(card, playerIndex, cardIndex, game) {
     && !game.gameOver
     && card.hp > 0;
   const isSelected = playerIndex === 0 && game.selectedCardIdx === cardIndex;
+  const targetLabel = skillTargeting ? '可选为技能目标' : '可选为攻击目标';
   return {
     ...card,
     hpPercent,
@@ -25,12 +26,13 @@ function decorateCard(card, playerIndex, cardIndex, game) {
     canSelect,
     canTarget,
     hoverClass: canSelect || canTarget ? 'card-pressed' : 'none',
-    ariaLabel: `${card.name}，攻击 ${card.attack}，生命 ${card.hp}/${card.maxHp}${card.hp <= 0 ? '，已倒下' : isSelected ? '，已选为攻击者' : canTarget ? '，可选为攻击目标' : canSelect ? '，可选为攻击者' : ''}`,
+    ariaLabel: `${card.name}，攻击 ${card.attack}，生命 ${card.hp}/${card.maxHp}${card.hp <= 0 ? '，已倒下' : isSelected ? '，已选为攻击者' : canTarget ? `，${targetLabel}` : canSelect ? '，可选为攻击者' : ''}`,
     healthTone: hpPercent <= 25 ? 'critical' : hpPercent <= 50 ? 'low' : '',
+    targetLabel: skillTargeting ? '技能目标' : '可攻击',
   };
 }
 
-function getStatus(game) {
+function getStatus(game, skillTargeting) {
   if (game.gameOver) {
     return {
       turnLabel: '战斗结束',
@@ -45,6 +47,13 @@ function getStatus(game) {
     return { turnLabel: '你的回合', statusText: '选择一张己方卡牌作为攻击者', statusTone: 'ready' };
   }
   const attacker = game.players[0].cards[game.selectedCardIdx];
+  if (skillTargeting && attacker.skill) {
+    return {
+      turnLabel: '你的回合',
+      statusText: `选择对手目标释放${attacker.skill.name}`,
+      statusTone: 'target',
+    };
+  }
   return {
     turnLabel: '你的回合',
     statusText: `已选 ${attacker.name}，选择对手目标`,
@@ -62,10 +71,12 @@ Page({
     statusText: '',
     statusTone: 'ready',
     gameOver: false,
+    skillTargeting: false,
   },
 
   onLoad() {
     this.game = createGame();
+    this.skillTargeting = false;
     this.aiTimer = null;
     this.logEntries = [];
     this.logSequence = 0;
@@ -83,7 +94,7 @@ Page({
       ...player,
       playerIndex,
       cards: player.cards.map((card, cardIndex) => (
-        decorateCard(card, playerIndex, cardIndex, this.game)
+        decorateCard(card, playerIndex, cardIndex, this.game, this.skillTargeting)
       )),
     })).reverse();
     const selectedCard = this.game.selectedCardIdx === null
@@ -93,12 +104,22 @@ Page({
       ? {
         ...selectedCard.skill,
         canUse: !this.game.gameOver && this.game.currentPlayerIdx === 0 && !selectedCard.skill.used,
+        isTargeted: selectedCard.skill.targetMode === 'single',
+        targeting: this.skillTargeting,
+        buttonLabel: selectedCard.skill.used
+          ? '本局已使用'
+          : this.skillTargeting
+            ? '取消选择'
+            : selectedCard.skill.targetMode === 'single'
+              ? '选择目标'
+              : '释放技能',
       }
       : null;
     this.setData({
       players,
       selectedSkill,
-      ...getStatus(this.game),
+      skillTargeting: this.skillTargeting,
+      ...getStatus(this.game, this.skillTargeting),
       gameOver: this.game.gameOver,
     });
   },
@@ -108,21 +129,38 @@ Page({
     const playerIndex = Number(event.currentTarget.dataset.playerIndex);
     const cardIndex = Number(event.currentTarget.dataset.cardIndex);
     if (playerIndex === 0) {
-      if (selectAttacker(this.game, 0, cardIndex)) this.updateView();
+      if (selectAttacker(this.game, 0, cardIndex)) {
+        this.skillTargeting = false;
+        this.updateView();
+      }
       return;
     }
     if (playerIndex !== 1 || this.game.selectedCardIdx === null) return;
 
-    const events = playPlayerAttack(this.game, 1, cardIndex);
+    const events = this.skillTargeting
+      ? useSelectedCardSkill(this.game, cardIndex)
+      : playPlayerAttack(this.game, 1, cardIndex);
     if (events.length === 0) return;
+    this.skillTargeting = false;
     this.addEvents(events);
     this.updateView();
     this.scheduleAiTurn();
   },
 
   onUseSkill() {
+    const selectedCard = this.game.selectedCardIdx === null
+      ? null
+      : this.game.players[0].cards[this.game.selectedCardIdx];
+    if (!selectedCard || !selectedCard.skill || selectedCard.skill.used || this.game.gameOver) return;
+    if (selectedCard.skill.targetMode === 'single') {
+      this.skillTargeting = !this.skillTargeting;
+      this.updateView();
+      return;
+    }
+
     const events = useSelectedCardSkill(this.game);
     if (events.length === 0) return;
+    this.skillTargeting = false;
     this.addEvents(events);
     this.updateView();
     this.scheduleAiTurn();
@@ -174,6 +212,7 @@ Page({
     if (this.aiTimer) clearTimeout(this.aiTimer);
     this.aiTimer = null;
     this.game = createGame();
+    this.skillTargeting = false;
     this.logEntries = [];
     this.logSequence = 0;
     this.addLog('新战斗开始，轮到你行动。', 'info');
