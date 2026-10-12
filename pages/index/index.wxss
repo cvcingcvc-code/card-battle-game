@@ -191,6 +191,21 @@
   text-align: right;
 }
 
+.card-skill {
+  display: block;
+  margin-top: 8rpx;
+  overflow: hidden;
+  color: #f0bf63;
+  font-size: 18rpx;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-skill.used {
+  color: #93a09b;
+}
+
 .versus-row {
   display: flex;
   align-items: center;

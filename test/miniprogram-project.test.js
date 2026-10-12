@@ -77,4 +77,8 @@ test('compact-screen touch controls and card spacing meet minimum dimensions', (
   const cardGap = getDeclarations('.card-row').match(/\bgap:\s*(\d+)rpx/);
   assert.ok(cardGap);
   assert.ok(Number(cardGap[1]) >= minimumTouchGap);
+
+  const skillLabel = getDeclarations('.card-skill');
+  assert.match(skillLabel, /white-space:\s*nowrap/);
+  assert.match(skillLabel, /text-overflow:\s*ellipsis/);
 });

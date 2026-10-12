@@ -39,6 +39,7 @@
         <text wx:if="{{card.isDead}}" class="card-state">已倒下</text>
         <text wx:elif="{{card.isSelected}}" class="card-state">攻击者</text>
         <text wx:elif="{{card.canTarget}}" class="card-state">{{card.targetLabel}}</text>
+        <text wx:if="{{card.skillLabel}}" class="card-skill {{card.skillTone}}">{{card.skillLabel}}</text>
       </view>
     </view>
     <view wx:if="{{teamIndex === 0}}" class="versus-row">

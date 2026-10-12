@@ -18,6 +18,19 @@ function decorateCard(card, playerIndex, cardIndex, game, skillTargeting) {
     && card.hp > 0;
   const isSelected = playerIndex === 0 && game.selectedCardIdx === cardIndex;
   const targetLabel = skillTargeting ? '可选为技能目标' : '可选为攻击目标';
+  const skillStatus = !card.skill
+    ? ''
+    : card.skill.used
+      ? '已用'
+      : card.hp > 0 && !game.gameOver
+        ? '可用'
+        : '不可用';
+  const skillLabel = card.skill
+    ? `${card.skill.name} · ${skillStatus}`
+    : '';
+  const skillAnnouncement = card.skill
+    ? `，技能 ${card.skill.name} ${skillStatus}`
+    : '';
   return {
     ...card,
     hpPercent,
@@ -26,9 +39,11 @@ function decorateCard(card, playerIndex, cardIndex, game, skillTargeting) {
     canSelect,
     canTarget,
     hoverClass: canSelect || canTarget ? 'card-pressed' : 'none',
-    ariaLabel: `${card.name}，攻击 ${card.attack}，生命 ${card.hp}/${card.maxHp}${card.hp <= 0 ? '，已倒下' : isSelected ? '，已选为攻击者' : canTarget ? `，${targetLabel}` : canSelect ? '，可选为攻击者' : ''}`,
+    ariaLabel: `${card.name}，攻击 ${card.attack}，生命 ${card.hp}/${card.maxHp}${card.hp <= 0 ? '，已倒下' : isSelected ? '，已选为攻击者' : canTarget ? `，${targetLabel}` : canSelect ? '，可选为攻击者' : ''}${skillAnnouncement}`,
     healthTone: hpPercent <= 25 ? 'critical' : hpPercent <= 50 ? 'low' : '',
     targetLabel: skillTargeting ? '技能目标' : '可攻击',
+    skillLabel,
+    skillTone: skillStatus !== '可用' ? 'used' : '',
   };
 }
 

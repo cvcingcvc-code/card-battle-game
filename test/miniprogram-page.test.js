@@ -49,6 +49,15 @@ test('mini-program page runs player and AI attacks and records the exchange', ()
 
 test('mini-program logs AI area skill damage and resets the skill for a new battle', () => {
   const page = createPageHarness();
+  let enemy = page.data.players.find((team) => team.playerIndex === 1);
+  assert.equal(enemy.cards[2].skillLabel, '震地 · 可用');
+  assert.match(enemy.cards[2].ariaLabel, /技能 震地 可用/);
+  page.game.players[1].cards[2].hp = 0;
+  page.updateView();
+  enemy = page.data.players.find((team) => team.playerIndex === 1);
+  assert.equal(enemy.cards[2].skillLabel, '震地 · 不可用');
+  page.game.players[1].cards[2].hp = 90;
+  page.updateView();
   page.game.currentPlayerIdx = 1;
 
   page.runAiTurn();
@@ -59,6 +68,9 @@ test('mini-program logs AI area skill damage and resets the skill for a new batt
   assert.deepEqual(page.game.players[0].cards.map((card) => card.hp), [82, 22, 62]);
   assert.equal(page.game.players[1].cards[2].skill.used, true);
   assert.equal(page.data.statusTone, 'ready');
+  enemy = page.data.players.find((team) => team.playerIndex === 1);
+  assert.equal(enemy.cards[2].skillLabel, '震地 · 已用');
+  assert.match(enemy.cards[2].ariaLabel, /技能 震地 已用/);
 
   page.onReset();
   assert.equal(page.game.players[0].cards[0].hp, 100);
