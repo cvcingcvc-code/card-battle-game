@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>卡牌对战</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #1a1a2e; color: #eee; font-family: 'Microsoft YaHei', sans-serif;
+    display: flex; flex-direction: column; align-items: center; min-height: 100vh;
+    padding: 20px;
+  }
+  h1 { margin-bottom: 6px; color: #e94560; }
+
+  .arena { display: flex; flex-direction: column; gap: 16px; width: 100%; max-width: 700px; }
+
+  .player-panel {
+    background: #16213e; border-radius: 12px; padding: 16px;
+    border: 2px solid #0f3460; transition: border-color 0.3s, opacity 0.3s;
+  }
+  .player-panel h2 { margin-bottom: 10px; font-size: 18px; }
+  .player-panel.winner { border-color: #f5c518; }
+  .player-panel.loser { opacity: 0.5; }
+
+  .cards { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+
+  .card {
+    width: 130px; padding: 10px; border-radius: 8px;
+    background: linear-gradient(135deg, #1a1a2e, #0f3460);
+    border: 2px solid #533483; text-align: center; transition: all 0.3s;
+    position: relative;
+  }
+  .card.dead {
+    opacity: 0.35; text-decoration: line-through;
+    background: #1a1a1a; border-color: #333;
+  }
+  .card.attacking {
+    border-color: #f5c518; box-shadow: 0 0 14px rgba(245,197,24,0.6);
+    transform: scale(1.05);
+  }
+  .card.defending {
+    border-color: #e94560; box-shadow: 0 0 14px rgba(233,69,96,0.6);
+    animation: shake 0.4s;
+  }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-4px); }
+    75% { transform: translateX(4px); }
+  }
+
+  .card .name { font-size: 15px; font-weight: bold; margin-bottom: 4px; }
+  .card .stats { font-size: 12px; color: #aaa; line-height: 1.5; }
+
+  .card .hp-bar {
+    height: 5px; background: #333; border-radius: 3px; margin-top: 6px; overflow: hidden;
+  }
+  .card .hp-fill {
+    height: 100%; background: #27ae60; transition: width 0.4s;
+  }
+  .card .hp-fill.low { background: #e67e22; }
+  .card .hp-fill.critical { background: #e74c3c; }
+
+  .vs {
+    text-align: center; font-size: 22px; font-weight: bold; color: #e94560;
+  }
+
+  button {
+    padding: 10px 28px; font-size: 15px; font-weight: bold;
+    background: #e94560; color: #fff; border: none; border-radius: 8px;
+    cursor: pointer; transition: opacity 0.2s;
+  }
+  button:hover { opacity: 0.85; }
+  button:disabled { background: #555; cursor: not-allowed; }
+
+  .btn-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .btn-auto { background: #533483; }
+
+  .round-indicator {
+    text-align: center; font-size: 14px; color: #888; min-height: 20px;
+  }
+
+  .action-desc {
+    text-align: center; font-size: 16px; font-weight: bold;
+    padding: 10px; background: #0d0d1a; border-radius: 8px;
+    border-left: 3px solid #f5c518; min-height: 44px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .action-desc .atk { color: #f5c518; }
+  .action-desc .def { color: #e94560; }
+
+  .result-banner {
+    text-align: center; font-size: 18px; font-weight: bold; padding: 10px;
+    border-radius: 8px; display: none;
+  }
+  .result-banner.show { display: block; }
+  .result-banner.win { background: #f5c518; color: #1a1a2e; }
+</style>
+</head>
+<body>
+<h1>卡牌对战</h1>
+
+<div class="arena">
+  <div class="player-panel" id="panel2">
+    <h2>玩家B</h2>
+    <div class="cards" id="cards2"></div>
+  </div>
+
+  <div class="vs">⚡ VS ⚡</div>
+
+  <div class="player-panel" id="panel1">
+    <h2>玩家A</h2>
+    <div class="cards" id="cards1"></div>
+  </div>
+
+  <div class="action-desc" id="actionDesc">准备战斗</div>
+  <div class="round-indicator" id="roundInfo"></div>
+  <div class="result-banner" id="result"></div>
+
+  <div class="btn-row">
+    <button id="btnBattle" onclick="startBattle()">开始战斗</button>
+    <button id="btnNext" onclick="nextRound()" disabled>下一回合 ▶</button>
+    <button id="btnAuto" onclick="toggleAuto()" disabled class="btn-auto">自动播放</button>
+    <button id="btnReset" onclick="resetGame()" style="background:#533483;">重新开始</button>
+  </div>
+</div>
+
+<script>
+let battleData = null;
+let currentStep = 0;
+let autoTimer = null;
+
+function renderCards(state) {
+  for (let p = 1; p <= 2; p++) {
+    const key = `player${p}`;
+    const container = document.getElementById(`cards${p}`);
+    container.innerHTML = state[key].cards.map((c, i) => {
+      let cls = 'card';
+      if (!c.alive) cls += ' dead';
+      const hpPct = c.maxHp > 0 ? (c.hp / c.maxHp) * 100 : 0;
+      let hpCls = '';
+      if (hpPct <= 25) hpCls = ' critical';
+      else if (hpPct <= 50) hpCls = ' low';
+
+      return `
+        <div class="${cls}" id="card-p${p}-${i}">
+          <div class="name">${c.name}</div>
+          <div class="stats">
+            ⚔ ATK: ${c.attack}<br>
+            ❤ HP: ${c.hp}/${c.maxHp}
+          </div>
+          <div class="hp-bar">
+            <div class="hp-fill${hpCls}" style="width:${hpPct}%"></div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+}
+
+function flashCard(playerIdx, cardIdx, cls, duration) {
+  const el = document.getElementById(`card-p${playerIdx + 1}-${cardIdx}`);
+  if (!el) return;
+  el.classList.add(cls);
+  setTimeout(() => el.classList.remove(cls), duration);
+}
+
+async function startBattle() {
+  document.getElementById('btnBattle').disabled = true;
+  document.getElementById('actionDesc').innerHTML = '加载中...';
+
+  const res = await fetch('/api/battle', { method: 'POST' });
+  battleData = await res.json();
+  currentStep = 0;
+
+  // 显示初始状态
+  renderCards(battleData.initialState);
+  document.getElementById('roundInfo').textContent = '准备就绪';
+  document.getElementById('actionDesc').innerHTML = '战斗开始！点击 <b>下一回合</b> 逐步观看';
+  document.getElementById('result').className = 'result-banner';
+
+  document.getElementById('btnNext').disabled = false;
+  document.getElementById('btnAuto').disabled = false;
+}
+
+function nextRound() {
+  if (!battleData || currentStep >= battleData.steps.length) return;
+
+  const step = battleData.steps[currentStep];
+  renderCards(step.state);
+
+  // 高亮攻击者和目标
+  const atkPlayerIdx = step.attackerPlayer === '玩家A' ? 0 : 1;
+  const defPlayerIdx = step.targetPlayer === '玩家A' ? 0 : 1;
+
+  // 找到卡牌索引
+  const atkCards = step.state[`player${atkPlayerIdx + 1}`].cards;
+  const defCards = step.state[`player${defPlayerIdx + 1}`].cards;
+  const atkIdx = atkCards.findIndex(c => c.name === step.attackerCard);
+  const defIdx = defCards.findIndex(c => c.name === step.targetCard);
+
+  flashCard(atkPlayerIdx, atkIdx, 'attacking', 500);
+  flashCard(defPlayerIdx, defIdx, 'defending', 500);
+
+  // 更新描述
+  document.getElementById('actionDesc').innerHTML =
+    `第 ${step.round} 回合：<span class="atk">${step.attackerPlayer}·${step.attackerCard}</span> ` +
+    `→ <span class="def">${step.targetPlayer}·${step.targetCard}</span>，` +
+    `造成 <b>${step.damage}</b> 点伤害` +
+    (step.killed ? ` — <span style="color:#f5c518">${step.killed} 被击倒！</span>` : '');
+
+  document.getElementById('roundInfo').textContent =
+    `回合 ${step.round} / ${battleData.totalRounds}`;
+
+  currentStep++;
+
+  // 战斗结束
+  if (currentStep >= battleData.steps.length) {
+    document.getElementById('btnNext').disabled = true;
+    document.getElementById('btnAuto').disabled = true;
+    stopAuto();
+    const resultDiv = document.getElementById('result');
+    resultDiv.textContent = `🏆 ${battleData.winner} 获胜！存活: ${battleData.survivors.join(', ')} — 共 ${battleData.totalRounds} 回合`;
+    resultDiv.className = 'result-banner win show';
+    document.getElementById('panel1').classList.toggle('winner', battleData.winner === '玩家A');
+    document.getElementById('panel2').classList.toggle('winner', battleData.winner === '玩家B');
+    document.getElementById('panel1').classList.toggle('loser', battleData.winner !== '玩家A');
+    document.getElementById('panel2').classList.toggle('loser', battleData.winner !== '玩家B');
+    document.getElementById('actionDesc').innerHTML =
+      `战斗结束！<span style="color:#f5c518">${battleData.winner}</span> 获胜`;
+  }
+}
+
+function toggleAuto() {
+  if (autoTimer) { stopAuto(); return; }
+  document.getElementById('btnAuto').textContent = '暂停';
+  document.getElementById('btnNext').disabled = true;
+  autoStep();
+}
+
+function autoStep() {
+  if (!battleData || currentStep >= battleData.steps.length) {
+    stopAuto();
+    return;
+  }
+  nextRound();
+  autoTimer = setTimeout(autoStep, 900);
+}
+
+function stopAuto() {
+  if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
+  document.getElementById('btnAuto').textContent = '自动播放';
+  if (battleData && currentStep < battleData.steps.length) {
+    document.getElementById('btnNext').disabled = false;
+  }
+}
+
+async function loadCards() {
+  const res = await fetch('/api/cards');
+  const data = await res.json();
+  renderCards({
+    player1: { cards: data.player1.cards.map(c => ({ ...c, alive: true })) },
+    player2: { cards: data.player2.cards.map(c => ({ ...c, alive: true })) },
+  });
+}
+
+function resetGame() {
+  stopAuto();
+  battleData = null;
+  currentStep = 0;
+  document.getElementById('btnBattle').disabled = false;
+  document.getElementById('btnNext').disabled = true;
+  document.getElementById('btnAuto').disabled = true;
+  document.getElementById('actionDesc').innerHTML = '准备战斗';
+  document.getElementById('roundInfo').textContent = '';
+  document.getElementById('result').className = 'result-banner';
+  document.getElementById('panel1').className = 'player-panel';
+  document.getElementById('panel2').className = 'player-panel';
+  loadCards();
+}
+
+loadCards();
+</script>
+</body>
+</html>

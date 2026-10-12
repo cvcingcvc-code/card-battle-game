@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>卡牌对战</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #1a1a2e; color: #eee; font-family: 'Microsoft YaHei', sans-serif;
+    display: flex; flex-direction: column; align-items: center; min-height: 100vh;
+  }
+  h1 { margin: 16px 0; color: #e94560; }
+
+  .battlefield {
+    display: flex; flex-direction: column; gap: 24px; width: 100%; max-width: 800px;
+  }
+
+  .player-zone { text-align: center; }
+  .player-zone h2 { margin-bottom: 10px; }
+  .player-zone.active h2 { color: #f5c518; }
+  .player-zone.defeated h2 { color: #666; text-decoration: line-through; }
+
+  .cards-row { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
+
+  .card {
+    width: 140px; padding: 12px; border-radius: 10px;
+    background: linear-gradient(135deg, #16213e, #0f3460);
+    border: 2px solid #533483; cursor: pointer; transition: all 0.2s;
+    user-select: none;
+  }
+  .card:hover { transform: translateY(-4px); border-color: #e94560; }
+  .card.dead { opacity: 0.35; cursor: not-allowed; background: #1a1a1a; border-color: #333; }
+  .card.dead:hover { transform: none; border-color: #333; }
+  .card.selected { border-color: #f5c518; box-shadow: 0 0 16px rgba(245,197,24,0.5); }
+  .card.target { border-color: #e94560; box-shadow: 0 0 16px rgba(233,69,96,0.5); }
+  .card.yours { cursor: default; }
+  .card.yours.selectable { cursor: pointer; }
+  .card.enemy { cursor: pointer; }
+
+  .card-name { font-size: 16px; font-weight: bold; margin-bottom: 6px; }
+  .card-stats { font-size: 13px; color: #ccc; line-height: 1.6; }
+  .card-hp-bar {
+    height: 6px; background: #333; border-radius: 3px; margin-top: 6px; overflow: hidden;
+  }
+  .card-hp-fill { height: 100%; background: #27ae60; transition: width 0.3s; }
+  .card-hp-fill.low { background: #e67e22; }
+  .card-hp-fill.critical { background: #e74c3c; }
+
+  .divider { display: flex; align-items: center; gap: 12px; justify-content: center; }
+  .divider .line { flex: 1; height: 1px; background: #333; }
+  .divider span { color: #888; font-size: 13px; }
+
+  .log-panel {
+    background: #0d0d1a; border: 1px solid #333; border-radius: 8px;
+    padding: 12px; max-height: 200px; overflow-y: auto; font-size: 13px;
+    line-height: 1.8; min-height: 80px;
+  }
+  .log-panel .log-hit { color: #e94560; }
+  .log-panel .log-kill { color: #f5c518; font-weight: bold; }
+  .log-panel .log-info { color: #888; }
+
+  .controls { display: flex; gap: 12px; margin: 12px 0; }
+  button {
+    padding: 8px 24px; border: none; border-radius: 6px; cursor: pointer;
+    font-size: 14px; font-weight: bold;
+  }
+  .btn-reset { background: #e94560; color: #fff; }
+  .btn-auto { background: #533483; color: #fff; }
+  button:hover { opacity: 0.85; }
+
+  .hint { color: #888; font-size: 13px; margin-bottom: 4px; text-align: center; }
+</style>
+</head>
+<body>
+<h1>卡牌对战</h1>
+
+<div class="hint" id="hint">点击你的卡牌选择攻击者</div>
+
+<div class="battlefield">
+  <div class="player-zone active" id="zone2">
+    <h2>玩家B</h2>
+    <div class="cards-row" id="cards2"></div>
+  </div>
+
+  <div class="divider"><div class="line"></div><span>VS</span><div class="line"></div></div>
+
+  <div class="player-zone" id="zone1">
+    <h2>玩家A (你)</h2>
+    <div class="cards-row" id="cards1"></div>
+  </div>
+
+  <div class="log-panel" id="log"></div>
+  <div class="controls">
+    <button class="btn-reset" onclick="resetGame()">重新开始</button>
+  </div>
+</div>
+
+<script>
+class Card {
+  constructor(name, attack, hp) {
+    this.name = name;
+    this.attack = attack;
+    this.hp = hp;
+    this.maxHp = hp;
+  }
+  isAlive() { return this.hp > 0; }
+}
+
+class Player {
+  constructor(name, cards) {
+    this.name = name;
+    this.cards = cards;
+  }
+  aliveCards() { return this.cards.filter(c => c.isAlive()); }
+  isAlive() { return this.aliveCards().length > 0; }
+}
+
+// 初始数据
+function createDecks() {
+  return [
+    new Player('玩家A', [
+      new Card('龙', 15, 100),
+      new Card('精灵射手', 30, 40),
+      new Card('石像鬼', 10, 80),
+    ]),
+    new Player('玩家B', [
+      new Card('骑士', 25, 60),
+      new Card('暗影刺客', 40, 25),
+      new Card('巨魔', 12, 90),
+    ]),
+  ];
+}
+
+let players = createDecks();
+let currentPlayerIdx = 0; // 0 = 玩家A (你), 1 = 玩家B (AI)
+let selectedCardIdx = null; // 你选中的攻击卡牌索引
+let gameOver = false;
+
+function render() {
+  // 渲染双方卡牌
+  for (let p = 0; p < 2; p++) {
+    const container = document.getElementById(`cards${p + 1}`);
+    container.innerHTML = '';
+    players[p].cards.forEach((card, i) => {
+      const el = document.createElement('div');
+      el.className = 'card';
+      if (!card.isAlive()) el.className += ' dead';
+
+      const hpPct = (card.hp / card.maxHp) * 100;
+      let hpClass = '';
+      if (hpPct <= 25) hpClass = ' critical';
+      else if (hpPct <= 50) hpClass = ' low';
+
+      el.innerHTML = `
+        <div class="card-name">${card.name}</div>
+        <div class="card-stats">
+          ⚔ ATK: ${card.attack}<br>
+          ❤ HP: ${card.hp}/${card.maxHp}
+        </div>
+        <div class="card-hp-bar">
+          <div class="card-hp-fill${hpClass}" style="width:${hpPct}%"></div>
+        </div>
+      `;
+
+      // 点击事件
+      if (!gameOver) {
+        if (p === currentPlayerIdx && card.isAlive()) {
+          // 当前玩家的卡牌，可选中为攻击者
+          el.className += ' yours selectable';
+          el.onclick = () => selectAttacker(p, i);
+        } else if (p !== currentPlayerIdx && card.isAlive() && selectedCardIdx !== null) {
+          // 对方卡牌，可作为攻击目标
+          el.className += ' enemy';
+          el.onclick = () => executeAttack(p, i);
+        }
+      }
+
+      // 选中高亮
+      if (p === currentPlayerIdx && i === selectedCardIdx) {
+        el.className += ' selected';
+      }
+
+      container.appendChild(el);
+    });
+  }
+
+  // 回合高亮
+  document.getElementById('zone1').className = 'player-zone';
+  document.getElementById('zone2').className = 'player-zone';
+  if (!gameOver) {
+    document.getElementById(`zone${currentPlayerIdx + 1}`).classList.add('active');
+  }
+  if (!players[0].isAlive()) document.getElementById('zone1').classList.add('defeated');
+  if (!players[1].isAlive()) document.getElementById('zone2').classList.add('defeated');
+
+  // 提示
+  const hint = document.getElementById('hint');
+  if (gameOver) {
+    const winner = players[0].isAlive() ? players[0] : players[1];
+    hint.textContent = `战斗结束！${winner.name} 获胜`;
+    hint.style.color = '#f5c518';
+  } else if (currentPlayerIdx === 0) {
+    hint.textContent = selectedCardIdx === null
+      ? '选择你的一张卡牌作为攻击者'
+      : '点击对手的卡牌选择攻击目标';
+    hint.style.color = '#888';
+  } else {
+    hint.textContent = '对手正在思考...';
+    hint.style.color = '#888';
+  }
+}
+
+function selectAttacker(playerIdx, cardIdx) {
+  if (gameOver || playerIdx !== currentPlayerIdx) return;
+  selectedCardIdx = cardIdx;
+  render();
+}
+
+function executeAttack(targetPlayerIdx, targetCardIdx) {
+  if (gameOver || selectedCardIdx === null) return;
+
+  const attacker = players[currentPlayerIdx];
+  const defender = players[targetPlayerIdx];
+  const attackCard = attacker.cards[selectedCardIdx];
+  const targetCard = defender.cards[targetCardIdx];
+
+  if (!attackCard.isAlive() || !targetCard.isAlive()) {
+    selectedCardIdx = null;
+    render();
+    return;
+  }
+
+  // 执行攻击
+  targetCard.hp = Math.max(0, targetCard.hp - attackCard.attack);
+  addLog(`${attacker.name} 的 ${attackCard.name} 攻击 ${defender.name} 的 ${targetCard.name}，造成 ${attackCard.attack} 点伤害`,
+    targetCard.isAlive() ? 'log-hit' : 'log-kill');
+
+  if (!targetCard.isAlive()) {
+    addLog(`${targetCard.name} 被击倒！`, 'log-kill');
+  }
+
+  selectedCardIdx = null;
+
+  // 检查游戏结束
+  if (!defender.isAlive()) {
+    gameOver = true;
+    addLog(`=== ${attacker.name} 获胜！ ===`, 'log-kill');
+    render();
+    return;
+  }
+
+  // 切换回合
+  currentPlayerIdx = targetPlayerIdx;
+  render();
+
+  // AI 回合
+  if (currentPlayerIdx === 1 && !gameOver) {
+    setTimeout(aiTurn, 800);
+  }
+}
+
+function aiTurn() {
+  if (gameOver || currentPlayerIdx !== 1) return;
+  const ai = players[1];
+  const human = players[0];
+
+  const aliveAi = ai.aliveCards();
+  const aliveHuman = human.aliveCards();
+  if (aliveAi.length === 0 || aliveHuman.length === 0) return;
+
+  // AI 策略：选攻击力最高的，攻击对方血量最低的
+  const attacker = aliveAi.reduce((a, b) => a.attack > b.attack ? a : b);
+  const target = aliveHuman.reduce((a, b) => a.hp < b.hp ? a : b);
+
+  target.hp = Math.max(0, target.hp - attacker.attack);
+  addLog(`${ai.name} 的 ${attacker.name} 攻击 ${human.name} 的 ${target.name}，造成 ${attacker.attack} 点伤害`,
+    target.isAlive() ? 'log-hit' : 'log-kill');
+
+  if (!target.isAlive()) {
+    addLog(`${target.name} 被击倒！`, 'log-kill');
+  }
+
+  if (!human.isAlive()) {
+    gameOver = true;
+    addLog(`=== ${ai.name} 获胜！ ===`, 'log-kill');
+  }
+
+  currentPlayerIdx = 0;
+  render();
+}
+
+function addLog(msg, cls) {
+  const log = document.getElementById('log');
+  const div = document.createElement('div');
+  div.className = cls || '';
+  div.textContent = msg;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+
+function resetGame() {
+  players = createDecks();
+  currentPlayerIdx = 0;
+  selectedCardIdx = null;
+  gameOver = false;
+  document.getElementById('log').innerHTML = '';
+  addLog('新战斗开始！', 'log-info');
+  render();
+}
+
+// 初始化
+addLog('点击你的卡牌，然后点击对手卡牌发动攻击', 'log-info');
+render();
+</script>
+</body>
+</html>
