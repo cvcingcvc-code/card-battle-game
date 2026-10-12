@@ -1,0 +1,159 @@
+.battle-page {
+  min-height: 100vh;
+  padding: 36rpx 28rpx 48rpx;
+  background: #101518;
+}
+
+.page-heading,
+.team-heading,
+.card-heading,
+.health-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.page-heading {
+  margin-bottom: 46rpx;
+  padding-bottom: 22rpx;
+  border-bottom: 1rpx solid #30383b;
+}
+
+.page-kicker {
+  color: #f1f1ea;
+  font-size: 30rpx;
+  font-weight: 700;
+}
+
+.roster-count {
+  color: #9ba8a4;
+  font-size: 22rpx;
+  font-variant-numeric: tabular-nums;
+}
+
+.team-section {
+  width: 100%;
+}
+
+.team-heading {
+  margin-bottom: 18rpx;
+}
+
+.team-name,
+.team-role {
+  display: block;
+}
+
+.team-name {
+  color: #e8ece9;
+  font-size: 28rpx;
+  font-weight: 700;
+}
+
+.team-role {
+  margin-top: 4rpx;
+  color: #93a09b;
+  font-size: 21rpx;
+}
+
+.enemy-team .team-index {
+  color: #ec6b59;
+}
+
+.player-team .team-index {
+  color: #6dc8a4;
+}
+
+.team-index {
+  font-size: 22rpx;
+  font-weight: 700;
+}
+
+.card-row {
+  display: flex;
+  gap: 12rpx;
+  width: 100%;
+}
+
+.unit-card {
+  flex: 1;
+  min-width: 0;
+  min-height: 190rpx;
+  padding: 17rpx 13rpx 15rpx;
+  border: 1rpx solid #414b4d;
+  border-top: 4rpx solid #ec6b59;
+  border-radius: 8rpx;
+  background: #1a2224;
+}
+
+.player-team .unit-card {
+  border-top-color: #6dc8a4;
+}
+
+.unit-card.is-dead {
+  opacity: 0.4;
+}
+
+.card-heading {
+  align-items: flex-start;
+  gap: 6rpx;
+  min-height: 42rpx;
+}
+
+.card-name {
+  overflow-wrap: anywhere;
+  color: #f1f2ee;
+  font-size: 22rpx;
+  font-weight: 700;
+}
+
+.attack-value {
+  flex: 0 0 auto;
+  color: #f0bf63;
+  font-size: 25rpx;
+  font-weight: 700;
+}
+
+.stat-caption {
+  display: block;
+  margin-top: 4rpx;
+  color: #87938f;
+  font-size: 17rpx;
+}
+
+.health-label {
+  margin-top: 26rpx;
+  color: #b9c4be;
+  font-size: 17rpx;
+  font-variant-numeric: tabular-nums;
+}
+
+.health-track {
+  height: 8rpx;
+  margin-top: 8rpx;
+  overflow: hidden;
+  border-radius: 4rpx;
+  background: #333c3d;
+}
+
+.health-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: #6dc8a4;
+}
+
+.versus-row {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  margin: 36rpx 0;
+  color: #e7b35b;
+  font-size: 22rpx;
+  font-weight: 700;
+}
+
+.versus-line {
+  flex: 1;
+  height: 1rpx;
+  background: #394143;
+}

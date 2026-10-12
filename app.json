@@ -1,0 +1,12 @@
+{
+  "pages": [
+    "pages/index/index"
+  ],
+  "window": {
+    "navigationBarTitleText": "卡牌对战",
+    "navigationBarBackgroundColor": "#151b1f",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#101518",
+    "backgroundTextStyle": "dark"
+  }
+}

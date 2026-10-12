@@ -1,0 +1,17 @@
+{
+  "description": "微信小程序卡牌对战",
+  "packOptions": {
+    "ignore": [],
+    "include": []
+  },
+  "setting": {
+    "es6": true,
+    "enhance": true,
+    "postcss": true,
+    "minified": true,
+    "urlCheck": true
+  },
+  "compileType": "miniprogram",
+  "appid": "",
+  "projectname": "card-battle-game"
+}
