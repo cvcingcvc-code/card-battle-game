@@ -26,6 +26,63 @@ function tapCard(page, playerIndex, cardIndex) {
   page.onCardTap({ currentTarget: { dataset: { playerIndex, cardIndex } } });
 }
 
+function pickCardIndex(cards, score, preferHigher) {
+  return cards.reduce((bestIndex, card, index) => {
+    if (card.hp <= 0) return bestIndex;
+    if (bestIndex === -1) return index;
+    const currentScore = score(card);
+    const bestScore = score(cards[bestIndex]);
+    return preferHigher
+      ? currentScore > bestScore ? index : bestIndex
+      : currentScore < bestScore ? index : bestIndex;
+  }, -1);
+}
+
+function playDeterministicMatch(page, choosePlayerMove) {
+  let turns = 0;
+  while (!page.game.gameOver && turns < 20) {
+    assert.equal(page.game.currentPlayerIdx, 0);
+    choosePlayerMove(page);
+    if (page.game.currentPlayerIdx === 1 && !page.game.gameOver) {
+      clearTimeout(page.aiTimer);
+      page.runAiTurn();
+    }
+    turns += 1;
+  }
+  assert.ok(page.game.gameOver, 'match should finish within 20 player turns');
+  return turns;
+}
+
+function playWinningMove(page) {
+  const playerCards = page.game.players[0].cards;
+  const enemyCards = page.game.players[1].cards;
+  const archer = playerCards[1];
+  const dragon = playerCards[0];
+  const livingEnemyCount = enemyCards.filter((card) => card.hp > 0).length;
+
+  if (archer.hp > 0 && !archer.skill.used) {
+    const targetIndex = pickCardIndex(enemyCards, (card) => card.hp, true);
+    tapCard(page, 0, 1);
+    page.onUseSkill();
+    tapCard(page, 1, targetIndex);
+  } else if (dragon.hp > 0 && !dragon.skill.used && livingEnemyCount > 1) {
+    tapCard(page, 0, 0);
+    page.onUseSkill();
+  } else {
+    const attackerIndex = pickCardIndex(playerCards, (card) => card.attack, true);
+    const targetIndex = pickCardIndex(enemyCards, (card) => card.hp, false);
+    tapCard(page, 0, attackerIndex);
+    tapCard(page, 1, targetIndex);
+  }
+}
+
+function playLosingMove(page) {
+  const attackerIndex = pickCardIndex(page.game.players[0].cards, (card) => card.attack, false);
+  const targetIndex = pickCardIndex(page.game.players[1].cards, (card) => card.hp, true);
+  tapCard(page, 0, attackerIndex);
+  tapCard(page, 1, targetIndex);
+}
+
 test('mini-program page runs player and AI attacks and records the exchange', () => {
   const page = createPageHarness();
 
@@ -172,6 +229,53 @@ test('page announces the turn flow and presents a clear terminal state', () => {
   page.onReset();
   assert.equal(page.data.gameOver, false);
   assert.equal(page.data.statusText, '选择一张己方卡牌作为攻击者');
+  assert.equal(page.data.logs.length, 1);
+  page.onUnload();
+});
+
+test('a full match can end in player victory after both sides use their skills, then restart cleanly', () => {
+  const page = createPageHarness();
+
+  const turns = playDeterministicMatch(page, playWinningMove);
+
+  assert.ok(turns <= 20);
+  assert.equal(page.game.winnerIdx, 0);
+  assert.equal(page.data.statusTone, 'victory');
+  assert.equal(page.game.players[0].cards[0].skill.used, true);
+  assert.equal(page.game.players[0].cards[1].skill.used, true);
+  assert.equal(page.game.players[1].cards[2].skill.used, true);
+  assert.ok(page.data.logs.some((entry) => entry.message.includes('龙焰')));
+  assert.ok(page.data.logs.some((entry) => entry.message.includes('精准射击')));
+  assert.ok(page.data.logs.some((entry) => entry.message.includes('震地')));
+  assert.ok(page.data.logs.some((entry) => entry.message.includes('玩家A 获胜')));
+
+  page.onReset();
+  assert.equal(page.game.gameOver, false);
+  assert.equal(page.game.currentPlayerIdx, 0);
+  assert.deepEqual(page.game.players.map((team) => team.cards.map((card) => card.hp)), [[100, 40, 80], [60, 25, 90]]);
+  assert.equal(page.game.players[0].cards[0].skill.used, false);
+  assert.equal(page.game.players[0].cards[1].skill.used, false);
+  assert.equal(page.game.players[1].cards[2].skill.used, false);
+  assert.equal(page.data.logs.length, 1);
+  page.onUnload();
+});
+
+test('a full match can end in AI victory and restart with a fresh player turn', () => {
+  const page = createPageHarness();
+
+  playDeterministicMatch(page, playLosingMove);
+
+  assert.equal(page.game.winnerIdx, 1);
+  assert.equal(page.data.statusTone, 'defeat');
+  assert.equal(page.game.players[1].cards[2].skill.used, true);
+  assert.ok(page.data.logs.some((entry) => entry.message.includes('震地')));
+  assert.ok(page.data.logs.some((entry) => entry.message.includes('玩家B 获胜')));
+
+  page.onReset();
+  assert.equal(page.game.gameOver, false);
+  assert.equal(page.game.currentPlayerIdx, 0);
+  assert.equal(page.game.players[0].cards[1].hp, 40);
+  assert.equal(page.game.players[1].cards[2].skill.used, false);
   assert.equal(page.data.logs.length, 1);
   page.onUnload();
 });
