@@ -1,34 +1,54 @@
 .battle-page {
   min-height: 100vh;
-  padding: 36rpx 28rpx 48rpx;
+  padding: 28rpx 28rpx 40rpx;
   background: #101518;
 }
 
 .page-heading,
 .team-heading,
 .card-heading,
-.health-label {
+.health-label,
+.log-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
 .page-heading {
-  margin-bottom: 46rpx;
-  padding-bottom: 22rpx;
+  margin-bottom: 20rpx;
+  padding-bottom: 20rpx;
   border-bottom: 1rpx solid #30383b;
 }
 
 .page-kicker {
   color: #f1f1ea;
-  font-size: 30rpx;
+  font-size: 32rpx;
   font-weight: 700;
 }
 
-.roster-count {
-  color: #9ba8a4;
+.turn-label {
+  color: #aab5b0;
   font-size: 22rpx;
-  font-variant-numeric: tabular-nums;
+}
+
+.status-banner {
+  min-height: 66rpx;
+  margin-bottom: 26rpx;
+  padding: 18rpx 20rpx;
+  border-left: 4rpx solid #d7aa53;
+  background: #1a2224;
+  color: #dbe2dd;
+  font-size: 23rpx;
+}
+
+.status-banner.target,
+.status-banner.victory {
+  border-left-color: #6dc8a4;
+}
+
+.status-banner.waiting,
+.status-banner.defeat {
+  border-left-color: #ec6b59;
 }
 
 .team-section {
@@ -36,7 +56,7 @@
 }
 
 .team-heading {
-  margin-bottom: 18rpx;
+  margin-bottom: 16rpx;
 }
 
 .team-name,
@@ -46,14 +66,14 @@
 
 .team-name {
   color: #e8ece9;
-  font-size: 28rpx;
+  font-size: 27rpx;
   font-weight: 700;
 }
 
 .team-role {
   margin-top: 4rpx;
   color: #93a09b;
-  font-size: 21rpx;
+  font-size: 20rpx;
 }
 
 .enemy-team .team-index {
@@ -78,8 +98,8 @@
 .unit-card {
   flex: 1;
   min-width: 0;
-  min-height: 190rpx;
-  padding: 17rpx 13rpx 15rpx;
+  min-height: 192rpx;
+  padding: 16rpx 12rpx 12rpx;
   border: 1rpx solid #414b4d;
   border-top: 4rpx solid #ec6b59;
   border-radius: 8rpx;
@@ -90,18 +110,27 @@
   border-top-color: #6dc8a4;
 }
 
+.unit-card.is-selected {
+  border-color: #e7b35b;
+  box-shadow: inset 0 0 0 1rpx #e7b35b;
+}
+
+.unit-card.is-targetable {
+  border-color: #ec6b59;
+}
+
 .unit-card.is-dead {
-  opacity: 0.4;
+  opacity: 0.42;
 }
 
 .card-heading {
   align-items: flex-start;
-  gap: 6rpx;
+  gap: 4rpx;
   min-height: 42rpx;
 }
 
 .card-name {
-  overflow-wrap: anywhere;
+  word-break: break-all;
   color: #f1f2ee;
   font-size: 22rpx;
   font-weight: 700;
@@ -116,13 +145,13 @@
 
 .stat-caption {
   display: block;
-  margin-top: 4rpx;
+  margin-top: 2rpx;
   color: #87938f;
   font-size: 17rpx;
 }
 
 .health-label {
-  margin-top: 26rpx;
+  margin-top: 20rpx;
   color: #b9c4be;
   font-size: 17rpx;
   font-variant-numeric: tabular-nums;
@@ -138,17 +167,33 @@
 
 .health-fill {
   height: 100%;
-  border-radius: inherit;
+  border-radius: 4rpx;
   background: #6dc8a4;
+}
+
+.health-fill.low {
+  background: #e7b35b;
+}
+
+.health-fill.critical {
+  background: #ec6b59;
+}
+
+.card-state {
+  display: block;
+  margin-top: 8rpx;
+  color: #b5c0ba;
+  font-size: 16rpx;
+  text-align: right;
 }
 
 .versus-row {
   display: flex;
   align-items: center;
   gap: 18rpx;
-  margin: 36rpx 0;
+  margin: 24rpx 0;
   color: #e7b35b;
-  font-size: 22rpx;
+  font-size: 20rpx;
   font-weight: 700;
 }
 
@@ -156,4 +201,64 @@
   flex: 1;
   height: 1rpx;
   background: #394143;
+}
+
+.log-section {
+  margin-top: 30rpx;
+}
+
+.log-heading {
+  margin-bottom: 10rpx;
+}
+
+.log-title {
+  color: #e8ece9;
+  font-size: 24rpx;
+  font-weight: 700;
+}
+
+.log-count {
+  color: #87938f;
+  font-size: 19rpx;
+}
+
+.log-panel {
+  height: 210rpx;
+  padding: 12rpx 16rpx;
+  border: 1rpx solid #30383b;
+  border-radius: 6rpx;
+  background: #151c1e;
+  box-sizing: border-box;
+}
+
+.log-entry {
+  padding: 6rpx 0;
+  color: #aab5b0;
+  font-size: 19rpx;
+  line-height: 1.55;
+}
+
+.log-entry.hit {
+  color: #ed9a7e;
+}
+
+.log-entry.kill,
+.log-entry.result {
+  color: #f0bf63;
+  font-weight: 700;
+}
+
+.reset-button {
+  height: 82rpx;
+  margin-top: 22rpx;
+  border: 1rpx solid #52605d;
+  border-radius: 6rpx;
+  background: #26312f;
+  color: #e8ece9;
+  font-size: 25rpx;
+  line-height: 80rpx;
+}
+
+.reset-button::after {
+  border: 0;
 }

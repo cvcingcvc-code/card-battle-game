@@ -1,64 +1,61 @@
 <view class="battle-page">
   <view class="page-heading">
-    <text class="page-kicker">本地对局</text>
-    <text class="roster-count">3 VS 3</text>
+    <text class="page-kicker">卡牌对战</text>
+    <text class="turn-label">{{turnLabel}}</text>
   </view>
 
-  <view class="team-section enemy-team">
+  <view class="status-banner {{statusTone}}">
+    <text>{{statusText}}</text>
+  </view>
+
+  <view wx:for="{{players}}" wx:for-item="team" wx:for-index="teamIndex" wx:key="name"
+    class="team-section {{team.playerIndex === 1 ? 'enemy-team' : 'player-team'}}">
     <view class="team-heading">
       <view>
-        <text class="team-name">玩家B</text>
-        <text class="team-role">对手</text>
+        <text class="team-name">{{team.name}}</text>
+        <text class="team-role">{{team.playerIndex === 0 ? '你' : '对手'}}</text>
       </view>
-      <text class="team-index">02</text>
+      <text class="team-index">{{team.playerIndex === 0 ? '01' : '02'}}</text>
     </view>
     <view class="card-row">
-      <view wx:for="{{players[1].cards}}" wx:key="name" class="unit-card {{item.isDead ? 'is-dead' : ''}}">
+      <view wx:for="{{team.cards}}" wx:for-item="card" wx:for-index="cardIndex" wx:key="name"
+        class="unit-card {{card.isDead ? 'is-dead' : ''}} {{card.isSelected ? 'is-selected' : ''}} {{card.canTarget ? 'is-targetable' : ''}}"
+        bindtap="onCardTap" data-player-index="{{team.playerIndex}}" data-card-index="{{cardIndex}}">
         <view class="card-heading">
-          <text class="card-name">{{item.name}}</text>
-          <text class="attack-value">{{item.attack}}</text>
+          <text class="card-name">{{card.name}}</text>
+          <text class="attack-value">{{card.attack}}</text>
         </view>
-        <text class="stat-caption">ATK</text>
+        <text class="stat-caption">攻击</text>
         <view class="health-label">
-          <text>HP</text>
-          <text>{{item.hp}} / {{item.maxHp}}</text>
+          <text>生命</text>
+          <text>{{card.hp}} / {{card.maxHp}}</text>
         </view>
         <view class="health-track">
-          <view class="health-fill" style="width: {{item.hpPercent}}%;"></view>
+          <view class="health-fill {{card.healthTone}}" style="width: {{card.hpPercent}}%;"></view>
         </view>
+        <text wx:if="{{card.isDead}}" class="card-state">已倒下</text>
+        <text wx:elif="{{card.isSelected}}" class="card-state">攻击者</text>
+        <text wx:elif="{{card.canTarget}}" class="card-state">可攻击</text>
       </view>
+    </view>
+    <view wx:if="{{teamIndex === 0}}" class="versus-row">
+      <view class="versus-line"></view>
+      <text>VS</text>
+      <view class="versus-line"></view>
     </view>
   </view>
 
-  <view class="versus-row">
-    <view class="versus-line"></view>
-    <text>VS</text>
-    <view class="versus-line"></view>
+  <view class="log-section">
+    <view class="log-heading">
+      <text class="log-title">战斗记录</text>
+      <text class="log-count">{{logs.length}} 条</text>
+    </view>
+    <scroll-view class="log-panel" scroll-y scroll-into-view="{{logScrollTarget}}" scroll-with-animation="true">
+      <view wx:for="{{logs}}" wx:key="id" id="{{item.id}}" class="log-entry {{item.tone}}">
+        {{item.message}}
+      </view>
+    </scroll-view>
   </view>
 
-  <view class="team-section player-team">
-    <view class="team-heading">
-      <view>
-        <text class="team-name">玩家A</text>
-        <text class="team-role">你</text>
-      </view>
-      <text class="team-index">01</text>
-    </view>
-    <view class="card-row">
-      <view wx:for="{{players[0].cards}}" wx:key="name" class="unit-card {{item.isDead ? 'is-dead' : ''}}">
-        <view class="card-heading">
-          <text class="card-name">{{item.name}}</text>
-          <text class="attack-value">{{item.attack}}</text>
-        </view>
-        <text class="stat-caption">ATK</text>
-        <view class="health-label">
-          <text>HP</text>
-          <text>{{item.hp}} / {{item.maxHp}}</text>
-        </view>
-        <view class="health-track">
-          <view class="health-fill" style="width: {{item.hpPercent}}%;"></view>
-        </view>
-      </view>
-    </view>
-  </view>
+  <button class="reset-button" bindtap="onReset">重新开始</button>
 </view>
