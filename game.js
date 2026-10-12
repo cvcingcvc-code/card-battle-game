@@ -2,6 +2,7 @@
 
 const PLAYER = 0;
 const AI = 1;
+const AI_SKILL_MINIMUM_ADVANTAGE = 10;
 
 function createGame() {
   return {
@@ -31,7 +32,13 @@ function createGame() {
         cards: [
           { name: '骑士', attack: 25, hp: 60, maxHp: 60 },
           { name: '暗影刺客', attack: 40, hp: 25, maxHp: 25 },
-          { name: '巨魔', attack: 12, hp: 90, maxHp: 90 },
+          {
+            name: '巨魔',
+            attack: 12,
+            hp: 90,
+            maxHp: 90,
+            skill: { name: '震地', description: '对所有存活敌人造成 18 点伤害', damage: 18, targetMode: 'all', used: false },
+          },
         ],
       },
     ],
@@ -86,6 +93,23 @@ function finishIfDefeated(game, attackerPlayerIdx, targetPlayerIdx) {
   return { type: 'victory', winnerIdx: attackerPlayerIdx };
 }
 
+function applySkill(skill, attackerPlayerIdx, attackerCardIdx, targetPlayerIdx, targets) {
+  skill.used = true;
+  return targets.map(({ card, cardIdx }) => {
+    card.hp = Math.max(0, card.hp - skill.damage);
+    return {
+      type: 'skill',
+      skillName: skill.name,
+      attackerPlayerIdx,
+      attackerCardIdx,
+      targetPlayerIdx,
+      targetCardIdx: cardIdx,
+      damage: skill.damage,
+      killedCardName: isCardAlive(card) ? null : card.name,
+    };
+  });
+}
+
 function playPlayerAttack(game, targetPlayerIdx, targetCardIdx) {
   if (game.gameOver || game.currentPlayerIdx !== PLAYER || game.selectedCardIdx === null) return [];
   if (targetPlayerIdx !== AI || !Number.isInteger(targetCardIdx)) return [];
@@ -124,20 +148,7 @@ function useSelectedCardSkill(game, targetCardIdx) {
       .filter(({ card }) => isCardAlive(card));
   if (targets.length === 0) return [];
 
-  attacker.skill.used = true;
-  const events = targets.map(({ card, cardIdx }) => {
-    card.hp = Math.max(0, card.hp - attacker.skill.damage);
-    return {
-      type: 'skill',
-      skillName: attacker.skill.name,
-      attackerPlayerIdx: PLAYER,
-      attackerCardIdx,
-      targetPlayerIdx: AI,
-      targetCardIdx: cardIdx,
-      damage: attacker.skill.damage,
-      killedCardName: isCardAlive(card) ? null : card.name,
-    };
-  });
+  const events = applySkill(attacker.skill, PLAYER, attackerCardIdx, AI, targets);
   game.selectedCardIdx = null;
 
   const victory = finishIfDefeated(game, PLAYER, AI);
@@ -163,15 +174,25 @@ function playAiTurn(game) {
 
   const attacker = chooseCard(aiCards, (card) => card.attack, true);
   const target = chooseCard(playerCards, (card) => card.hp, false);
-  const events = [
-    applyAttack(
-      game,
+  const attackerCardIdx = game.players[AI].cards.indexOf(attacker);
+  const targetCardIdx = game.players[PLAYER].cards.indexOf(target);
+  const ordinaryEffectiveDamage = Math.min(attacker.attack, target.hp);
+  const skillUser = aiCards.find((card) => card.skill && !card.skill.used && card.skill.targetMode === 'all');
+  const skillEffectiveDamage = skillUser && playerCards.length > 1
+    ? playerCards.reduce((damage, card) => damage + Math.min(card.hp, skillUser.skill.damage), 0)
+    : 0;
+  const shouldUseSkill = skillUser
+    && playerCards.length > 1
+    && skillEffectiveDamage >= ordinaryEffectiveDamage + AI_SKILL_MINIMUM_ADVANTAGE;
+  const events = shouldUseSkill
+    ? applySkill(
+      skillUser.skill,
       AI,
-      game.players[AI].cards.indexOf(attacker),
+      game.players[AI].cards.indexOf(skillUser),
       PLAYER,
-      game.players[PLAYER].cards.indexOf(target),
-    ),
-  ];
+      playerCards.map((card) => ({ card, cardIdx: game.players[PLAYER].cards.indexOf(card) })),
+    )
+    : [applyAttack(game, AI, attackerCardIdx, PLAYER, targetCardIdx)];
 
   const victory = finishIfDefeated(game, AI, PLAYER);
   if (victory) events.push(victory);

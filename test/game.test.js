@@ -40,6 +40,7 @@ test('allows a living player card to attack a living AI card', () => {
 test('AI uses its strongest living card against the player card with the least health', () => {
   const game = createGame();
   game.currentPlayerIdx = 1;
+  game.players[1].cards[2].skill.used = true;
   game.players[0].cards[0].hp = 100;
   game.players[0].cards[1].hp = 39;
   game.players[0].cards[2].hp = 80;
@@ -52,6 +53,73 @@ test('AI uses its strongest living card against the player card with the least h
   assert.equal(events[0].killedCardName, '精灵射手');
   assert.equal(game.players[0].cards[1].hp, 0);
   assert.equal(game.currentPlayerIdx, 0);
+});
+
+test('AI uses Troll Stomp when its effective area damage beats the best attack by 10', () => {
+  const game = createGame();
+  game.currentPlayerIdx = 1;
+
+  const events = playAiTurn(game);
+
+  assert.equal(events.length, 3);
+  assert.deepEqual(events.map((event) => event.type), ['skill', 'skill', 'skill']);
+  assert.deepEqual(events.map((event) => event.damage), [18, 18, 18]);
+  assert.deepEqual(game.players[0].cards.map((card) => card.hp), [82, 22, 62]);
+  assert.equal(events[0].attackerPlayerIdx, 1);
+  assert.equal(events[0].attackerCardIdx, 2);
+  assert.equal(game.players[1].cards[2].skill.used, true);
+  assert.equal(game.currentPlayerIdx, 0);
+
+  game.currentPlayerIdx = 1;
+  const nextTurn = playAiTurn(game);
+  assert.equal(nextTurn.length, 1);
+  assert.equal(nextTurn[0].type, 'attack');
+});
+
+test('AI saves Troll Stomp when its effective damage does not beat a focused attack', () => {
+  const game = createGame();
+  game.currentPlayerIdx = 1;
+  game.players[0].cards[1].hp = 0;
+  game.players[0].cards[2].hp = 80;
+
+  const events = playAiTurn(game);
+
+  assert.equal(events.length, 1);
+  assert.equal(events[0].type, 'attack');
+  assert.equal(events[0].attackerCardIdx, 1);
+  assert.equal(events[0].targetCardIdx, 2);
+  assert.equal(game.players[1].cards[2].skill.used, false);
+});
+
+test('AI saves Troll Stomp when only one player card remains', () => {
+  const game = createGame();
+  game.currentPlayerIdx = 1;
+  game.players[0].cards[1].hp = 0;
+  game.players[0].cards[2].hp = 0;
+
+  const events = playAiTurn(game);
+
+  assert.equal(events.length, 1);
+  assert.equal(events[0].type, 'attack');
+  assert.equal(game.players[1].cards[2].skill.used, false);
+});
+
+test('AI can win with Troll Stomp when it defeats multiple remaining cards', () => {
+  const game = createGame();
+  game.currentPlayerIdx = 1;
+  game.players[0].cards[0].hp = 10;
+  game.players[0].cards[1].hp = 18;
+  game.players[0].cards[2].hp = 0;
+
+  const events = playAiTurn(game);
+
+  assert.equal(events.length, 3);
+  assert.equal(events[0].type, 'skill');
+  assert.equal(events[0].killedCardName, '龙');
+  assert.equal(game.players[0].cards[1].hp, 0);
+  assert.equal(game.gameOver, true);
+  assert.equal(game.winnerIdx, 1);
+  assert.equal(events.at(-1).type, 'victory');
 });
 
 test('Dragon Flame damages every living enemy once and hands the turn to the AI', () => {

@@ -40,10 +40,29 @@ test('mini-program page runs player and AI attacks and records the exchange', ()
   clearTimeout(page.aiTimer);
   page.runAiTurn();
 
-  assert.equal(page.game.players[0].cards[1].hp, 0);
+  assert.deepEqual(page.game.players[0].cards.map((card) => card.hp), [82, 22, 62]);
   assert.equal(page.game.currentPlayerIdx, 0);
   assert.equal(page.data.statusTone, 'ready');
-  assert.ok(page.data.logs.some((entry) => entry.message.includes('被击倒')));
+  assert.ok(page.data.logs.some((entry) => entry.message.includes('震地')));
+  page.onUnload();
+});
+
+test('mini-program logs AI area skill damage and resets the skill for a new battle', () => {
+  const page = createPageHarness();
+  page.game.currentPlayerIdx = 1;
+
+  page.runAiTurn();
+
+  const skillLogs = page.data.logs.filter((entry) => entry.message.includes('震地'));
+  assert.equal(skillLogs.length, 3);
+  assert.ok(skillLogs.every((entry) => entry.message.includes('玩家B 的 巨魔')));
+  assert.deepEqual(page.game.players[0].cards.map((card) => card.hp), [82, 22, 62]);
+  assert.equal(page.game.players[1].cards[2].skill.used, true);
+  assert.equal(page.data.statusTone, 'ready');
+
+  page.onReset();
+  assert.equal(page.game.players[0].cards[0].hp, 100);
+  assert.equal(page.game.players[1].cards[2].skill.used, false);
   page.onUnload();
 });
 
