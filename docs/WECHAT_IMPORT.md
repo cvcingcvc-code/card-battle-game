@@ -1,6 +1,6 @@
 # 微信开发者工具导入
 
-主要发布工程现为微信小游戏，请按 [RELEASE.md](RELEASE.md) 操作。
+主要发布工程现为微信小游戏，首次接入请看 [中文接入指南](../微信小游戏接入指南.md)，发布步骤见 [RELEASE.md](RELEASE.md)。
 
 运行 `npm run package:minigame`，导入 `.artifacts/minigame/ember-duel`。小游戏目录直接包含 `game.js/game.json/project.config.json`，类型为 `game`；选择小游戏 AppID。无需构建npm或配置服务器。
 
