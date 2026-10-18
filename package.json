@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "test": "node --test",
+    "test:coverage": "node --test --experimental-test-coverage --test-coverage-exclude=\"test/**\" --test-coverage-exclude=\"design/**\" --test-coverage-exclude=\".artifacts/**\"",
     "package:weapp": "node scripts/package-weapp.js",
     "package:minigame": "node scripts/package-minigame.js",
     "verify": "npm test && node scripts/check-release.js --code-only",
