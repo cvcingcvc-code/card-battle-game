@@ -1,0 +1,17 @@
+{
+  "description": "余烬对决 · 原生微信小游戏",
+  "miniprogramRoot": "./",
+  "compileType": "game",
+  "appid": "",
+  "projectname": "ember-duel",
+  "setting": {
+    "es6": true,
+    "enhance": true,
+    "minified": true,
+    "urlCheck": true
+  },
+  "packOptions": {
+    "ignore": [],
+    "include": []
+  }
+}

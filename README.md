@@ -1,56 +1,46 @@
-# 余烬对决 · 微信原生卡牌对战
+# 余烬对决 · 微信小游戏
 
-离线人机回合制卡牌对战，使用 WXML、WXSS、`Page()` 和本地规则引擎。不需要服务端、数据库、登录、网络 API、第三方组件或 npm 构建。当前工程类型是微信**小程序**（`miniprogram`）；微信小游戏采用另一套入口和运行环境，需要另行适配。能导入开发者工具并不等于账号类目、资质或审核已经满足发布要求。
+1.0.0 固定三对三单人策略对战。主要交付现为微信小游戏：`game.js/game.json`、Canvas 2D、本地插画和共享规则。开始、规则、对局、技能、战报、胜负、再战、关于与隐私形成闭环，后续玩法从这个版本迭代。
 
-## 开发与验证
+## 生成小游戏工程
 
-使用 Node.js 18 或更新版本，在仓库根目录运行：
+Node.js 18+，无第三方 npm 依赖：
 
 ```sh
-npm test
 npm run verify
-npm run package:weapp
+npm run package:minigame
 ```
 
-项目没有 npm 依赖，不需要 `npm install`。`verify` 执行测试和代码发布检查；它不要求真实 AppID，也不会上传。`package:weapp` 输出可导入的开发工程：
+导入 `.artifacts/minigame/ember-duel`，或解压同目录 `ember-duel.zip` 后导入。目录内应直接包含 `game.js`、`game.json`、`project.config.json`，配置类型为 `game`。请选择微信小游戏 AppID；测试账号能力以工具提示为准。
 
-```text
-.artifacts/wechat/card-battle-game/               开发者工具导入目录
-.artifacts/wechat/card-battle-game.zip            可解压后导入的 ZIP
-.artifacts/wechat/card-battle-game.manifest.json  文件大小与 SHA-256 清单
-```
+**仓库根目录保留普通小程序参考工程；正式小游戏请导入上述独立目录。** 小游戏打包不会携带 Page/WXML 或普通小程序入口。
 
-导出器检查原生配置、页面、模块、图片等本地资源引用、调试/测试资源和仓库的 2 MiB 保守体积预算。最终包大小以开发者工具分析为准。系统没有 `zip` 时仍会生成工程目录。重复导出会重建生成目录，请在源码或另行解压的工作目录继续开发。
-
-## 微信开发者工具
-
-1. 安装稳定版微信开发者工具，选择「导入项目」。
-2. 选择生成的 `card-battle-game` 文件夹，确认其中直接包含 `app.json` 和 `project.config.json`。
-3. 项目类型选「小程序」。本地查看可用工具提供的测试号；正式预览和上传使用自己拥有权限且类别符合项目的小程序 AppID。
-4. 点击「编译」。无需「构建 npm」，无需选择云开发环境。
-
-日常迭代也可直接导入仓库根目录，项目配置会排除浏览器、测试、设计源文件和导出产物。源码中的 AppID 保持空白；不要把凭据或个人开发者配置提交到仓库。完整操作、验收及故障处理见 [微信导入与验收](docs/WECHAT_IMPORT.md)。
-
-## 发布候选检查
+## 发布候选与源码保存
 
 ```sh
+cp release.local.example.json release.local.json
+# 在本机填入实际小游戏AppID，accountType为game。
 npm run release:check
 npm run package:release
 ```
 
-发布命令按发布配置和真实 AppID 检查候选资格；缺少要求时会明确失败。详见 [发布候选流程](docs/RELEASE.md)。配置中的 `release.local.json` 用于本机账号信息，不进入运行时工程。`package:release` 产出 release-candidate 源工程，不是微信官方上传包；开发导出、候选检查和上传审核是不同步骤。微信模拟器编译、扫码预览、iOS/Android 真机验收及账号平台要求需另行完成。
+候选副本中写入 AppID，源配置与本机账号文件不混入运行时交付。AppID 校验只确认格式；平台编译、真机、账号资质和审核需要实际完成。详见 [小游戏发布步骤](docs/RELEASE.md)。
 
-## 游戏与工程
+建立干净的源码 Git 提交后运行 `npm run archive:source`，生成完整源码 ZIP、可恢复 Git bundle 和哈希清单。源码归档包含测试、设计源和工具，供后续增加玩法。
 
-从开始页查看规则并进入战斗。选择己方存活卡牌，再选择敌人普通攻击。龙的「龙焰」攻击所有存活敌人；精灵射手的「精准射击」需先选技能，再选目标。技能每局一次，对手自动行动；战斗结束可重开或回到开始页。
+## 源码分工
 
 | 路径 | 用途 |
 | --- | --- |
-| `app.*`、`sitemap.json`、`project.config.json` | 原生入口、全局样式、搜索规则及工程配置 |
-| `pages/` | 开始页、规则、战斗、结算与关于/隐私说明 |
-| `game.js`、`data/` | 共用规则、卡牌文案与素材元数据 |
-| `assets/`、`design/` | 发布素材与不打包的设计源文件 |
-| `test/`、`scripts/` | 回归测试、工程导出及发布检查 |
-| `index.html`、`standalone/` | 浏览器预览与历史原型，不是微信入口 |
+| `minigame/entry.js` | 打包后成为小游戏根 `game.js` |
+| `minigame/runtime.js` | 微信画布、图片、触摸、滚动、尺寸与生命周期适配 |
+| `minigame/controller.js` | 纯JS场景/对局状态，复用规则，管理AI任务 |
+| `minigame/renderer.js` | Canvas画面、文本换行与命中区 |
+| 根 `game.js` | 共享规则，小游戏包内命名为 `rules.js` |
+| `data/`、`assets/` | 版本、卡牌资料和七张本地图片 |
+| `scripts/`、`test/` | 导出、发布预检、源码归档与自动化 |
+| `design/art-source/` | 原创SVG和PNG重生成工具 |
+| `pages/`、`app.*` | 原生小程序参考版，非小游戏发布入口 |
+| `index.html`、`standalone/` | 浏览器/历史原型，非小游戏发布入口 |
 
-浏览器预览可运行 `python3 -m http.server 8000 --bind 0.0.0.0` 后访问 `http://localhost:8000`。浏览器检查和 Node.js 测试不能替代微信官方编译、设备显示和发布验收。
+Canvas 在状态变化、触摸滚动、图片加载或尺寸改变时绘制，空闲时不启动持续动画循环。没有登录、业务网络、广告、支付或存档依赖。玩法与设计入口见 [DESIGN.md](docs/DESIGN.md)，数据事实见 [PRIVACY.md](docs/PRIVACY.md)。

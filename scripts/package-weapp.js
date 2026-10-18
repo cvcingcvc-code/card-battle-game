@@ -393,7 +393,7 @@ function packageProject(projectRoot = path.resolve(__dirname, '..')) {
   }
 }
 
-module.exports = { validateProject, packageProject, MAX_MAIN_PACKAGE_BYTES };
+module.exports = { validateProject, packageProject, MAX_MAIN_PACKAGE_BYTES, scanJavaScript };
 
 if (require.main === module) {
   try {

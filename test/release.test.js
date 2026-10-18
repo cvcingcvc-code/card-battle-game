@@ -39,6 +39,23 @@ function fixture(t) {
   return { root, write };
 }
 
+function gameFixture(t) {
+  const project = fixture(t);
+  const { write } = project;
+  write('release.config.json', { name: '余烬对决', version: '1.0.0', target: 'game', description: '小游戏测试夹具' });
+  write('minigame/project.config.json', { compileType: 'game', miniprogramRoot: './', appid: '' });
+  write('minigame/game.json', { deviceOrientation: 'portrait' });
+  write('minigame/entry.js', "const runtime = require('./runtime'); const rules = require('./rules'); const cards = require('./data/cards'); const app = require('./data/app.json');\n");
+  write('minigame/runtime.js', "module.exports = [require('./controller'), require('./renderer')];\n");
+  write('minigame/controller.js', 'module.exports = {};\n');
+  write('minigame/renderer.js', 'module.exports = {};\n');
+  write('data/cards.js', 'module.exports = { art: "/assets/cards/dragon.png" };\n');
+  for (const name of ['hero', 'cards/dragon', 'cards/archer', 'cards/gargoyle', 'cards/knight', 'cards/assassin', 'cards/troll']) {
+    write(`assets/${name}.png`, Buffer.from(`fixture image: ${name}`));
+  }
+  return project;
+}
+
 test('default release check blocks missing identity; code-only checks never mark release ready', (t) => {
   const { root } = fixture(t);
   const strict = checkRelease({ projectRoot: root, environment: {} });
@@ -153,4 +170,66 @@ test('source and output symlinks are rejected without changing their targets', (
   fs.symlinkSync(outside, path.join(root, '.artifacts'));
   assert.throws(() => packageRelease({ projectRoot: root, environment: identity }), /符号链接/);
   assert.equal(fs.readFileSync(path.join(outside, 'sentinel'), 'utf8'), 'preserved');
+});
+
+test('game code-only preflight uses the game runtime and accepts only explicitly matching account types', (t) => {
+  const { root } = gameFixture(t);
+  // The historical Page/WXML app is deliberately broken. It is not the game
+  // entry point and must not participate in game-target source validation.
+  fs.rmSync(path.join(root, 'app.json'));
+  const codeOnly = checkRelease({ projectRoot: root, codeOnly: true, environment: {} });
+  assert.equal(codeOnly.ok, true);
+  assert.equal(codeOnly.release.target, 'game');
+  assert.equal(codeOnly.candidate_ready, false);
+  for (const accountType of ['game', 'minigame']) {
+    const report = checkRelease({ projectRoot: root, environment: { ...identity, WECHAT_ACCOUNT_TYPE: accountType } });
+    assert.equal(report.candidate_ready, true);
+    assert.equal(report.identity_checks.normalized_account_type, 'game');
+    assert.equal(report.release_ready, false);
+    assert.equal(report.platform_checks.status, 'unverified');
+  }
+  for (const accountType of ['miniprogram', '', 'GAME']) {
+    const report = checkRelease({ projectRoot: root, environment: { ...identity, WECHAT_ACCOUNT_TYPE: accountType } });
+    assert.equal(report.ok, false);
+  }
+});
+
+test('game identity falls back to the game configuration instead of the reference mini program', (t) => {
+  const { root, write } = gameFixture(t);
+  write('project.config.json', { compileType: 'miniprogram', appid: FIXTURE_ID });
+  assert.equal(checkRelease({ projectRoot: root, environment: { WECHAT_ACCOUNT_TYPE: 'game' } }).ok, false);
+  write('minigame/project.config.json', { compileType: 'game', miniprogramRoot: './', appid: FIXTURE_ID });
+  const report = checkRelease({ projectRoot: root, environment: { WECHAT_ACCOUNT_TYPE: 'minigame' } });
+  assert.equal(report.ok, true);
+  assert.equal(report.identity_checks.sources.appid, 'minigame/project.config.json');
+});
+
+test('game release candidate remaps its entry and rules, injects only the copied game configuration and excludes Page files', (t) => {
+  const { root, write } = gameFixture(t);
+  write('release.local.json', { appid: FIXTURE_ID, accountType: 'game', notes: 'PRIVATE' });
+  write('release.local.example.json', { appid: '', accountType: '' });
+  const sourceConfiguration = fs.readFileSync(path.join(root, 'minigame/project.config.json'));
+  const referenceConfiguration = fs.readFileSync(path.join(root, 'project.config.json'));
+  const result = packageRelease({ projectRoot: root, environment: {} });
+  assert.equal(result.target, 'game');
+  const config = JSON.parse(fs.readFileSync(path.join(result.projectOutput, 'project.config.json')));
+  assert.equal(config.compileType, 'game');
+  assert.equal(config.appid, FIXTURE_ID);
+  assert.deepEqual(fs.readFileSync(path.join(root, 'minigame/project.config.json')), sourceConfiguration);
+  assert.deepEqual(fs.readFileSync(path.join(root, 'project.config.json')), referenceConfiguration);
+  assert.deepEqual(fs.readFileSync(path.join(result.projectOutput, 'game.js')), fs.readFileSync(path.join(root, 'minigame/entry.js')));
+  assert.deepEqual(fs.readFileSync(path.join(result.projectOutput, 'rules.js')), fs.readFileSync(path.join(root, 'game.js')));
+  const manifest = JSON.parse(fs.readFileSync(result.manifestOutput));
+  assert.equal(manifest.target, 'game');
+  assert.equal(manifest.files.length, 16);
+  assert.equal(manifest.platform_checks.status, 'unverified');
+  assert.equal(manifest.release_ready, false);
+  for (const excluded of ['app.js', 'app.json', 'app.wxss', 'sitemap.json', 'pages', 'minigame', 'release.local.json', 'release.local.example.json']) {
+    assert.equal(fs.existsSync(path.join(result.projectOutput, excluded)), false);
+  }
+  const archive = fs.readFileSync(result.zipOutput);
+  assert.deepEqual(fs.readFileSync(packageRelease({ projectRoot: root, environment: {} }).zipOutput), archive);
+  fs.rmSync(path.join(root, 'minigame/controller.js'));
+  assert.throws(() => packageRelease({ projectRoot: root, environment: {} }), /前置检查/);
+  assert.deepEqual(fs.readFileSync(result.zipOutput), archive);
 });

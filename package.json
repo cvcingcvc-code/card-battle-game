@@ -5,6 +5,7 @@
   "scripts": {
     "test": "node --test",
     "package:weapp": "node scripts/package-weapp.js",
+    "package:minigame": "node scripts/package-minigame.js",
     "verify": "npm test && node scripts/check-release.js --code-only",
     "release:check": "node scripts/check-release.js",
     "package:release": "node scripts/package-release.js",

@@ -5,6 +5,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { spawnSync } = require('node:child_process');
 const { validateProject } = require('./package-weapp');
+const { validateMinigame } = require('./package-minigame');
 const { checkRelease, assertPlainPath, chooseIdentity } = require('./check-release');
 
 const FIXED_TIME = new Date('2000-01-01T00:00:00.000Z');
@@ -77,9 +78,10 @@ function packageRelease({ projectRoot = path.resolve(__dirname, '..'), environme
     error.report = report;
     throw error;
   }
-  // validateProject is deliberately called again before copying. Its allowlist
+  // The runtime validator is called again before copying. Its allowlist
   // is the only source of runtime files; release/local files are never copied.
-  const validation = validateProject(root);
+  const validate = report.release.target === 'game' ? validateMinigame : validateProject;
+  const validation = validate(root);
   const localPath = path.join(root, 'release.local.json');
   assertPlainPath(localPath);
   const local = existing(localPath) ? JSON.parse(fs.readFileSync(localPath, 'utf8')) : {};
@@ -101,7 +103,7 @@ function packageRelease({ projectRoot = path.resolve(__dirname, '..'), environme
   try {
     fs.mkdirSync(stagedProject);
     for (const relativePath of validation.files) {
-      const source = path.join(root, relativePath);
+      const source = path.join(root, validation.sourceFiles?.[relativePath] || relativePath);
       assertPlainPath(source);
       let bytes = fs.readFileSync(source);
       if (relativePath === 'project.config.json') {
@@ -114,7 +116,7 @@ function packageRelease({ projectRoot = path.resolve(__dirname, '..'), environme
       fs.writeFileSync(destination, bytes, { mode: 0o644 });
       fs.utimesSync(destination, FIXED_TIME, FIXED_TIME);
     }
-    const candidate = validateProject(stagedProject, { maxBytes: validation.maxBytes });
+    const candidate = validate(stagedProject, { maxBytes: validation.maxBytes, exported: report.release.target === 'game' });
     if (candidate.projectConfig.appid !== appid) throw new Error('候选 AppID 写入校验失败。');
     const files = candidate.files.map((relativePath) => {
       const bytes = fs.readFileSync(path.join(stagedProject, relativePath));
@@ -146,7 +148,7 @@ function packageRelease({ projectRoot = path.resolve(__dirname, '..'), environme
       { source: stagedZip, destination: zipOutput },
       { source: stagedManifest, destination: manifestOutput },
     ], stage);
-    return { ok: true, kind: 'release-candidate', release_ready: false, projectOutput, zipOutput, manifestOutput, totalBytes: candidate.totalBytes, platform_checks: report.platform_checks };
+    return { ok: true, kind: 'release-candidate', target: report.release.target, release_ready: false, projectOutput, zipOutput, manifestOutput, totalBytes: candidate.totalBytes, platform_checks: report.platform_checks };
   } catch (error) {
     preserveStage = Boolean(error.preserveStage);
     throw error;

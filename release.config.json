@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
   "name": "余烬对决",
-  "target": "miniprogram",
-  "description": "原生离线单人三对三卡牌对战"
+  "target": "game",
+  "description": "微信小游戏离线单人三对三卡牌对战"
 }
