@@ -1,12 +1,15 @@
 {
   "pages": [
-    "pages/index/index"
+    "pages/home/home",
+    "pages/index/index",
+    "pages/about/about"
   ],
   "window": {
-    "navigationBarTitleText": "卡牌对战",
-    "navigationBarBackgroundColor": "#151b1f",
+    "navigationBarTitleText": "余烬对决",
+    "navigationBarBackgroundColor": "#0b1116",
     "navigationBarTextStyle": "white",
-    "backgroundColor": "#101518",
+    "backgroundColor": "#0b1116",
     "backgroundTextStyle": "dark"
-  }
+  },
+  "sitemapLocation": "sitemap.json"
 }

@@ -1,7 +1,34 @@
 {
-  "description": "微信小程序卡牌对战",
+  "description": "余烬对决 · 原生微信小程序卡牌对战",
+  "miniprogramRoot": "./",
   "packOptions": {
-    "ignore": [],
+    "ignore": [
+      { "type": "folder", "value": ".artifacts" },
+      { "type": "folder", "value": ".git" },
+      { "type": "folder", "value": "design" },
+      { "type": "folder", "value": "docs" },
+      { "type": "folder", "value": "node_modules" },
+      { "type": "folder", "value": "scripts" },
+      { "type": "folder", "value": "standalone" },
+      { "type": "folder", "value": "test" },
+      { "type": "file", "value": ".gitignore" },
+      { "type": "file", "value": ".DS_Store" },
+      { "type": "file", "value": "Thumbs.db" },
+      { "type": "file", "value": "project.private.config.json" },
+      { "type": "file", "value": "index.html" },
+      { "type": "file", "value": "battle.js" },
+      { "type": "file", "value": "card.js" },
+      { "type": "file", "value": "player.js" },
+      { "type": "file", "value": "package.json" },
+      { "type": "file", "value": "release.config.json" },
+      { "type": "file", "value": "release.local.example.json" },
+      { "type": "file", "value": "release.local.json" },
+      { "type": "file", "value": "README.md" },
+      { "type": "file", "value": "DECISIONS.md" },
+      { "type": "file", "value": "PLAN.md" },
+      { "type": "file", "value": "STATUS.md" },
+      { "type": "file", "value": "TASKS.md" }
+    ],
     "include": []
   },
   "setting": {

@@ -1,76 +1,62 @@
 <view class="battle-page">
   <view class="page-heading">
-    <text class="page-kicker">卡牌对战</text>
-    <text class="turn-label">{{turnLabel}}</text>
+    <view><text class="page-kicker">THE EMBER DUEL</text><text class="page-title">古境战场</text></view>
+    <view class="round-badge"><text class="round-caption">回合</text><text class="round-value">{{roundNumber}}</text></view>
   </view>
-
-  <view class="status-banner {{statusTone}}" aria-role="status" aria-live="polite">
-    <text>{{statusText}}</text>
+  <view wx:if="{{result}}" class="result-panel {{result.won ? 'is-victory' : 'is-defeat'}}" aria-role="status" aria-live="polite">
+    <text class="result-emblem">{{result.won ? '胜' : '终'}}</text><text class="result-eyebrow">{{result.won ? '远征告捷' : '再整旗鼓'}}</text>
+    <text class="result-title">{{result.title}}</text><text class="result-description">{{result.subtitle}}</text>
+    <view class="result-stats">
+      <view class="result-stat"><text class="result-value">{{result.rounds}}</text><text class="result-label">行动回合</text></view>
+      <view class="result-stat"><text class="result-value">{{result.survivors}}</text><text class="result-label">存活队员</text></view>
+      <view class="result-stat"><text class="result-value">{{result.damageDealt}}</text><text class="result-label">造成伤害</text></view>
+    </view>
+    <view class="result-footnote"><text>承受伤害 {{result.damageTaken}}</text><text>使用技能 {{result.skillsUsed}} 次</text></view>
+    <button class="reset-button result-rematch" bindtap="onReset" hover-class="reset-button-pressed">再战一局</button>
+    <button class="leave-button" bindtap="onLeave" disabled="{{isLeaving}}" hover-class="quiet-button-pressed">{{isLeaving ? '正在返回' : '返回营地'}}</button>
   </view>
-
-  <view wx:for="{{players}}" wx:for-item="team" wx:for-index="teamIndex" wx:key="name"
-    class="team-section {{team.playerIndex === 1 ? 'enemy-team' : 'player-team'}}">
+  <view wx:else class="status-banner {{statusTone}}" aria-role="status" aria-live="polite">
+    <view class="status-light"></view><view class="status-copy"><text class="turn-label">{{turnLabel}}</text><text class="status-text">{{statusText}}</text></view>
+  </view>
+  <view wx:for="{{players}}" wx:for-item="team" wx:for-index="teamIndex" wx:key="name" class="team-section {{team.playerIndex === 1 ? 'enemy-team' : 'player-team'}}">
     <view class="team-heading">
-      <view>
-        <text class="team-name">{{team.name}}</text>
-        <text class="team-role">{{team.playerIndex === 0 ? '你' : '对手'}}</text>
-      </view>
-      <text class="team-index">{{team.playerIndex === 0 ? '01' : '02'}}</text>
+      <view class="team-name-row"><view class="team-marker"></view><text class="team-name">{{team.playerIndex === 0 ? '翡翠远征' : '灰烬守军'}}</text><text class="team-role">{{team.playerIndex === 0 ? '你的队伍' : '敌方'}}</text></view>
+      <text class="team-index">{{team.aliveCount}} / 3 存活</text>
     </view>
     <view class="card-row">
       <view wx:for="{{team.cards}}" wx:for-item="card" wx:for-index="cardIndex" wx:key="name"
         class="unit-card {{card.isDead ? 'is-dead' : ''}} {{card.isSelected ? 'is-selected' : ''}} {{card.canTarget ? 'is-targetable' : ''}}"
         bindtap="onCardTap" data-player-index="{{team.playerIndex}}" data-card-index="{{cardIndex}}"
-        aria-role="{{card.canSelect || card.canTarget ? 'button' : 'text'}}" aria-label="{{card.ariaLabel}}"
-        aria-pressed="{{card.isSelected}}"
-        hover-class="{{card.hoverClass}}" hover-stay-time="100">
-        <view class="card-heading">
-          <text class="card-name">{{card.name}}</text>
-          <text class="attack-value">{{card.attack}}</text>
+        aria-role="{{card.canSelect || card.canTarget ? 'button' : 'text'}}" aria-label="{{card.ariaLabel}}" aria-pressed="{{card.isSelected}}" hover-class="{{card.hoverClass}}" hover-stay-time="100">
+        <view class="card-portrait"><image class="portrait-image" src="{{card.art}}" mode="aspectFill" aria-hidden="true"></image><view class="portrait-shade"></view><text class="card-role">{{card.role}}</text>
+          <text wx:if="{{card.isDead}}" class="card-state">已倒下</text><text wx:elif="{{card.isSelected}}" class="card-state selected-state">已选中</text><text wx:elif="{{card.canTarget}}" class="card-state target-state">{{card.targetLabel}}</text><text class="card-name">{{card.name}}</text>
         </view>
-        <text class="stat-caption">攻击</text>
-        <view class="health-label">
-          <text>生命</text>
-          <text>{{card.hp}} / {{card.maxHp}}</text>
+        <view class="card-body">
+          <view class="card-heading"><text class="stat-caption">攻击</text><text class="attack-value">{{card.attack}}</text></view>
+          <view class="health-label"><text>生命</text><text>{{card.hp}}<text class="max-health"> / {{card.maxHp}}</text></text></view>
+          <view class="health-track"><view class="health-fill {{card.healthTone}}" style="width: {{card.hpPercent}}%;"></view></view>
+          <text class="card-skill {{card.skillTone}}">{{card.skillLabel || card.tag}}</text>
         </view>
-        <view class="health-track">
-          <view class="health-fill {{card.healthTone}}" style="width: {{card.hpPercent}}%;"></view>
-        </view>
-        <text wx:if="{{card.isDead}}" class="card-state">已倒下</text>
-        <text wx:elif="{{card.isSelected}}" class="card-state">攻击者</text>
-        <text wx:elif="{{card.canTarget}}" class="card-state">{{card.targetLabel}}</text>
-        <text wx:if="{{card.skillLabel}}" class="card-skill {{card.skillTone}}">{{card.skillLabel}}</text>
       </view>
     </view>
-    <view wx:if="{{teamIndex === 0}}" class="versus-row">
-      <view class="versus-line"></view>
-      <text>VS</text>
-      <view class="versus-line"></view>
-    </view>
+    <view wx:if="{{teamIndex === 0}}" class="versus-row"><view class="versus-line"></view><text>交锋</text><view class="versus-line"></view></view>
   </view>
-
+  <view wx:if="{{!gameOver}}" class="selection-panel">
+    <view wx:if="{{selectedCardDetail}}">
+      <view class="selection-heading"><text class="selection-name">{{selectedCardDetail.name}}</text><text class="selection-role">{{selectedCardDetail.role}}</text></view><text class="selection-description">{{selectedCardDetail.description}}</text>
+      <text wx:if="{{skillTargeting}}" class="selection-hint">正在瞄准：点击敌方卡牌释放{{selectedSkill.name}}，也可以取消选择。</text>
+      <text wx:elif="{{selectedSkill && selectedSkill.canUse}}" class="selection-hint">点击敌方卡牌普通攻击，或选择下方主动技能。</text>
+      <text wx:else class="selection-hint">点击一张存活的敌方卡牌，发起普通攻击。</text>
+    </view>
+    <view wx:else><text class="selection-name">每一次出手，都有取舍。</text><text class="selection-description">选中己方卡牌查看能力，再选择敌方目标。击败所有敌人，即可赢得对决。</text></view>
+  </view>
   <view wx:if="{{selectedSkill}}" class="skill-panel">
-    <view class="skill-copy">
-      <text class="skill-name">{{selectedSkill.name}}</text>
-      <text class="skill-description">{{selectedSkill.description}}</text>
-    </view>
-    <button class="skill-button" disabled="{{!selectedSkill.canUse}}" bindtap="onUseSkill"
-      hover-class="skill-button-pressed" hover-stay-time="100">
-      {{selectedSkill.buttonLabel}}
-    </button>
+    <view class="skill-copy"><text class="skill-name">{{selectedSkill.name}}</text><text class="skill-description">{{selectedSkill.description}}</text><text class="skill-limit">每局一次 · 占用本回合行动</text></view>
+    <button class="skill-button" disabled="{{!selectedSkill.canUse || isLeaving}}" bindtap="onUseSkill" hover-class="skill-button-pressed" hover-stay-time="100">{{selectedSkill.buttonLabel}}</button>
   </view>
-
-  <view class="log-section">
-    <view class="log-heading">
-      <text class="log-title">战斗记录</text>
-      <text class="log-count">{{logs.length}} 条</text>
-    </view>
-    <scroll-view class="log-panel" scroll-y scroll-into-view="{{logScrollTarget}}" scroll-with-animation="true">
-      <view wx:for="{{logs}}" wx:key="id" id="{{item.id}}" class="log-entry {{item.tone}}">
-        {{item.message}}
-      </view>
-    </scroll-view>
+  <view class="log-section"><view class="log-heading"><text class="log-title">战斗纪事</text><text class="log-count">{{logs.length}} 条记录</text></view>
+    <scroll-view class="log-panel" scroll-y scroll-into-view="{{logScrollTarget}}" scroll-with-animation="true"><view wx:for="{{logs}}" wx:key="id" id="{{item.id}}" class="log-entry {{item.tone}}">{{item.message}}</view></scroll-view>
   </view>
-
-  <button class="reset-button" bindtap="onReset" hover-class="reset-button-pressed" hover-stay-time="100">重新开始</button>
+  <view wx:if="{{!gameOver}}" class="battle-actions"><button class="reset-button" bindtap="onReset" disabled="{{isLeaving}}" hover-class="reset-button-pressed" hover-stay-time="100">重新开始</button><button class="leave-button" bindtap="onLeave" disabled="{{isLeaving}}" hover-class="quiet-button-pressed">{{isLeaving ? '正在返回' : '返回营地'}}</button></view>
+  <text class="page-footer">以谋略点燃余烬</text>
 </view>

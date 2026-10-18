@@ -1,0 +1,20 @@
+<view class="about-page">
+  <text class="about-kicker">THE EMBER DUEL</text>
+  <text class="about-title">{{name}}</text>
+  <text class="about-version">版本 {{version}} · 单人策略对战</text>
+  <view class="about-panel">
+    <text class="section-title">六张卡牌，一场策略交锋</text>
+    <text class="body-copy">与龙、精灵射手和石像鬼并肩作战。选择目标，把握技能时机，在轮流攻防中赢得胜利。</text>
+    <text class="body-copy">每一局从相同阵容开始，没有随机抽卡。胜负取决于出手顺序与目标选择。</text>
+  </view>
+  <view class="about-panel">
+    <text class="section-title">隐私与对局数据</text>
+    <text class="body-copy">本游戏无需登录，不收集或上传个人信息，不含广告、支付或第三方统计服务。</text>
+    <text class="body-copy">对局只在当前设备内进行。离开战场或关闭游戏后，本局进度不会保存；再次开始会创建新对局。</text>
+  </view>
+  <view class="about-panel">
+    <text class="section-title">美术与内容</text>
+    <text class="body-copy">场景和卡牌插画均为本项目原创素材。角色名称、技能说明与当前版本的实际规则一致。</text>
+  </view>
+  <button class="return-button" bindtap="onReturn" hover-class="return-button-pressed">返回营地</button>
+</view>

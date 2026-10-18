@@ -2,3 +2,5 @@ node_modules/
 .DS_Store
 Thumbs.db
 project.private.config.json
+.artifacts/
+release.local.json

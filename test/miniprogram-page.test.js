@@ -22,6 +22,56 @@ function createPageHarness() {
   return page;
 }
 
+function withFakeTimers(run) {
+  const originalSetTimeout = global.setTimeout;
+  const originalClearTimeout = global.clearTimeout;
+  const pending = new Map();
+  let sequence = 0;
+  global.setTimeout = (callback, delay, ...args) => {
+    const timerId = ++sequence;
+    pending.set(timerId, { callback: () => callback(...args), delay });
+    return timerId;
+  };
+  global.clearTimeout = (timerId) => pending.delete(timerId);
+  try {
+    run({
+      count: () => pending.size,
+      callback: (timerId) => pending.get(timerId).callback,
+      runNext() {
+        const [timerId, timer] = pending.entries().next().value || [];
+        assert.ok(timer, 'expected a pending AI action');
+        pending.delete(timerId);
+        timer.callback();
+      },
+    });
+  } finally {
+    global.setTimeout = originalSetTimeout;
+    global.clearTimeout = originalClearTimeout;
+  }
+}
+
+function withWx(mock, run) {
+  const previousWx = global.wx;
+  if (mock === undefined) delete global.wx;
+  else global.wx = mock;
+  try {
+    run();
+  } finally {
+    if (previousWx === undefined) delete global.wx;
+    else global.wx = previousWx;
+  }
+}
+
+function assertFreshResult(page) {
+  assert.equal(page.data.result, null);
+  assert.equal(page.data.roundNumber, 1);
+  assert.equal(page.data.playerActions, 0);
+  assert.equal(page.data.damageDealt, 0);
+  assert.equal(page.data.damageTaken, 0);
+  assert.equal(page.data.skillsUsed, 0);
+  assert.equal(page.data.selectedCardDetail, null);
+}
+
 function tapCard(page, playerIndex, cardIndex) {
   page.onCardTap({ currentTarget: { dataset: { playerIndex, cardIndex } } });
 }
@@ -248,8 +298,22 @@ test('a full match can end in player victory after both sides use their skills, 
   assert.ok(page.data.logs.some((entry) => entry.message.includes('精准射击')));
   assert.ok(page.data.logs.some((entry) => entry.message.includes('震地')));
   assert.ok(page.data.logs.some((entry) => entry.message.includes('玩家A 获胜')));
+  const { subtitle, ...result } = page.data.result;
+  assert.ok(subtitle);
+  assert.deepEqual(result, {
+    won: true,
+    title: '战斗胜利',
+    rounds: turns,
+    survivors: 1,
+    damageDealt: 175,
+    damageTaken: 213,
+    skillsUsed: 2,
+  });
+  assert.equal(page.data.roundNumber, turns);
+  assert.equal(page.aiTimer, null, 'the victory must not schedule another AI action');
 
   page.onReset();
+  assertFreshResult(page);
   assert.equal(page.game.gameOver, false);
   assert.equal(page.game.currentPlayerIdx, 0);
   assert.deepEqual(page.game.players.map((team) => team.cards.map((card) => card.hp)), [[100, 40, 80], [60, 25, 90]]);
@@ -263,19 +327,303 @@ test('a full match can end in player victory after both sides use their skills, 
 test('a full match can end in AI victory and restart with a fresh player turn', () => {
   const page = createPageHarness();
 
-  playDeterministicMatch(page, playLosingMove);
+  const turns = playDeterministicMatch(page, playLosingMove);
 
   assert.equal(page.game.winnerIdx, 1);
   assert.equal(page.data.statusTone, 'defeat');
   assert.equal(page.game.players[1].cards[2].skill.used, true);
   assert.ok(page.data.logs.some((entry) => entry.message.includes('震地')));
   assert.ok(page.data.logs.some((entry) => entry.message.includes('玩家B 获胜')));
+  assert.equal(page.data.result.won, false);
+  assert.equal(page.data.result.title, '战斗失利');
+  assert.ok(page.data.result.subtitle);
+  assert.equal(page.data.result.rounds, turns);
+  assert.equal(page.data.roundNumber, turns);
+  assert.equal(page.data.result.survivors, 0);
+  assert.equal(page.data.result.damageTaken, 220, 'damage totals must exclude overkill');
+  assert.equal(page.data.result.damageDealt,
+    175 - page.game.players[1].cards.reduce((sum, card) => sum + card.hp, 0));
+  assert.equal(page.data.result.skillsUsed, 0);
+  assert.equal(page.aiTimer, null);
 
   page.onReset();
+  assertFreshResult(page);
   assert.equal(page.game.gameOver, false);
   assert.equal(page.game.currentPlayerIdx, 0);
   assert.equal(page.game.players[0].cards[1].hp, 40);
   assert.equal(page.game.players[1].cards[2].skill.used, false);
   assert.equal(page.data.logs.length, 1);
   page.onUnload();
+});
+
+test('tapping a dead card preserves the attacker, target mode and visible selection', () => {
+  withFakeTimers((timers) => {
+    const page = createPageHarness();
+    page.game.players[0].cards[2].hp = 0;
+    page.game.players[1].cards[0].hp = 0;
+    page.updateView();
+    tapCard(page, 0, 1);
+
+    for (const useSkill of [false, true]) {
+      if (useSkill) page.onUseSkill();
+      const previousView = JSON.parse(JSON.stringify(page.data));
+      const previousGame = JSON.parse(JSON.stringify(page.game));
+      tapCard(page, 0, 2);
+      tapCard(page, 1, 0);
+      assert.deepEqual(page.game, previousGame);
+      assert.deepEqual(page.data, previousView);
+      assert.equal(page.skillTargeting, useSkill);
+      assert.equal(page.game.selectedCardIdx, 1);
+      assert.equal(page.data.players.find((team) => team.playerIndex === 0).cards[1].isSelected, true);
+      assert.equal(page.data.selectedCardDetail.name, '精灵射手');
+      assert.equal(timers.count(), 0);
+    }
+    page.onUnload();
+  });
+});
+
+test('backgrounding pauses the AI and returning resumes exactly one action', () => {
+  withFakeTimers((timers) => {
+    const page = createPageHarness();
+    tapCard(page, 0, 1);
+    tapCard(page, 1, 0);
+    const staleAction = timers.callback(page.aiTimer);
+    const initialTimer = page.aiTimer;
+    page.scheduleAiTurn();
+    assert.equal(page.aiTimer, initialTimer);
+    assert.equal(timers.count(), 1);
+
+    page.onHide();
+    assert.equal(page.aiTimer, null);
+    assert.equal(timers.count(), 0);
+    const pausedState = JSON.stringify(page.game);
+    staleAction();
+    page.scheduleAiTurn();
+    assert.equal(JSON.stringify(page.game), pausedState);
+    assert.equal(timers.count(), 0);
+
+    page.onShow();
+    page.onShow();
+    assert.equal(timers.count(), 1);
+    const resumedTimer = page.aiTimer;
+    staleAction();
+    assert.equal(JSON.stringify(page.game), pausedState);
+    assert.equal(page.aiTimer, resumedTimer);
+    assert.equal(timers.count(), 1);
+    timers.runNext();
+    assert.deepEqual(page.game.players[0].cards.map((card) => card.hp), [82, 22, 62]);
+    assert.equal(page.game.currentPlayerIdx, 0);
+    assert.equal(page.data.roundNumber, 2);
+    assert.equal(page.data.logs.filter((entry) => entry.message.includes('震地')).length, 3);
+    assert.equal(timers.count(), 0);
+    page.onShow();
+    assert.equal(timers.count(), 0);
+    page.onUnload();
+  });
+});
+
+test('reset and unload make an old AI callback unable to act on a new or disposed battle', () => {
+  withFakeTimers((timers) => {
+    const page = createPageHarness();
+    tapCard(page, 0, 1);
+    tapCard(page, 1, 0);
+    const oldBattleAction = timers.callback(page.aiTimer);
+    page.onReset();
+    assertFreshResult(page);
+    tapCard(page, 0, 1);
+    tapCard(page, 1, 0);
+    const activeTimer = page.aiTimer;
+    const disposedAction = timers.callback(activeTimer);
+    const waitingState = JSON.stringify(page.game);
+    oldBattleAction();
+    assert.equal(JSON.stringify(page.game), waitingState);
+    assert.equal(page.aiTimer, activeTimer);
+    assert.equal(timers.count(), 1);
+
+    page.onUnload();
+    disposedAction();
+    page.runAiTurn();
+    page.scheduleAiTurn();
+    page.onShow();
+    assert.equal(JSON.stringify(page.game), waitingState);
+    assert.equal(page.aiTimer, null);
+    assert.equal(timers.count(), 0);
+  });
+});
+
+test('returning to the start screen clears the pending battle task before navigation', () => {
+  withFakeTimers((timers) => {
+    const navigation = [];
+    const page = createPageHarness();
+    withWx({
+      reLaunch(options) {
+        assert.equal(timers.count(), 0);
+        navigation.push(options.url);
+        options.success();
+      },
+    }, () => {
+      tapCard(page, 0, 0);
+      tapCard(page, 1, 0);
+      const staleAction = timers.callback(page.aiTimer);
+      const waitingState = JSON.stringify(page.game);
+      page.onLeave();
+      assert.deepEqual(navigation, ['/pages/home/home']);
+      staleAction();
+      page.onShow();
+      assert.equal(JSON.stringify(page.game), waitingState);
+      assert.equal(page.aiTimer, null);
+      assert.equal(timers.count(), 0);
+      page.onUnload();
+    });
+  });
+});
+
+test('a pending return ignores repeat taps and a navigation failure resumes one AI action', () => {
+  withFakeTimers((timers) => {
+    const requests = [];
+    const toasts = [];
+    withWx({
+      reLaunch: (options) => requests.push(options),
+      showToast: (options) => toasts.push(options),
+    }, () => {
+      const page = createPageHarness();
+      tapCard(page, 0, 0);
+      tapCard(page, 1, 0);
+      const staleAction = timers.callback(page.aiTimer);
+      const waitingGame = page.game;
+      const waitingState = JSON.stringify(page.game);
+
+      page.onLeave();
+      page.onLeave();
+      page.onShow();
+      page.onReset();
+      page.runAiTurn();
+      staleAction();
+      assert.equal(requests.length, 1);
+      assert.equal(page.data.isLeaving, true, 'the view must disable repeated navigation while waiting');
+      assert.equal(timers.count(), 0);
+      assert.equal(page.game, waitingGame, 'a pending return must not restart the battle');
+      assert.equal(JSON.stringify(page.game), waitingState);
+
+      requests[0].fail({ errMsg: 'reLaunch:fail' });
+      requests[0].fail({ errMsg: 'reLaunch:fail' });
+      assert.equal(page.data.isLeaving, false, 'the view must become interactive after navigation failure');
+      assert.equal(timers.count(), 1);
+      assert.equal(toasts.length, 1);
+      assert.equal(toasts[0].icon, 'none');
+      assert.match(toasts[0].title, /重试/);
+      timers.runNext();
+      assert.equal(page.game.currentPlayerIdx, 0);
+      assert.equal(page.data.roundNumber, 2);
+      assert.equal(timers.count(), 0);
+      assert.equal(page.data.logs.filter((entry) => entry.message.includes('震地')).length, 3);
+      page.onUnload();
+    });
+  });
+});
+
+test('a failed return preserves the selected skill and lets the player continue the same battle', () => {
+  withFakeTimers((timers) => {
+    const requests = [];
+    withWx({ reLaunch: (options) => requests.push(options) }, () => {
+      const page = createPageHarness();
+      tapCard(page, 0, 1);
+      page.onUseSkill();
+      const targetingState = JSON.stringify(page.game);
+      page.onLeave();
+      tapCard(page, 0, 0);
+      page.onUseSkill();
+      tapCard(page, 1, 0);
+      assert.equal(JSON.stringify(page.game), targetingState);
+      assert.equal(page.data.skillTargeting, true);
+      assert.equal(timers.count(), 0);
+
+      requests[0].fail({ errMsg: 'reLaunch:fail' });
+      assert.equal(timers.count(), 0);
+      tapCard(page, 1, 0);
+      assert.equal(page.game.players[1].cards[0].hp, 10);
+      assert.equal(page.game.players[0].cards[1].skill.used, true);
+      assert.equal(page.data.playerActions, 1);
+      assert.equal(page.data.damageDealt, 50);
+      assert.equal(timers.count(), 1);
+      page.onUnload();
+    });
+  });
+});
+
+test('a return failure while hidden waits until the battle is shown to resume the AI', () => {
+  withFakeTimers((timers) => {
+    const requests = [];
+    withWx({ reLaunch: (options) => requests.push(options) }, () => {
+      const page = createPageHarness();
+      tapCard(page, 0, 0);
+      tapCard(page, 1, 0);
+      page.onLeave();
+      page.onHide();
+      requests[0].fail({ errMsg: 'reLaunch:fail' });
+      assert.equal(timers.count(), 0);
+      assert.equal(page.game.currentPlayerIdx, 1);
+      page.onShow();
+      page.onShow();
+      assert.equal(timers.count(), 1);
+      timers.runNext();
+      assert.equal(page.game.currentPlayerIdx, 0);
+      assert.equal(page.data.roundNumber, 2);
+      page.onUnload();
+    });
+  });
+});
+
+test('a successful return cannot be revived by late navigation or AI callbacks', () => {
+  withFakeTimers((timers) => {
+    const requests = [];
+    const toasts = [];
+    withWx({
+      reLaunch: (options) => requests.push(options),
+      showToast: (options) => toasts.push(options),
+    }, () => {
+      const page = createPageHarness();
+      tapCard(page, 0, 0);
+      tapCard(page, 1, 0);
+      const staleAction = timers.callback(page.aiTimer);
+      const waitingState = JSON.stringify(page.game);
+      page.onLeave();
+      requests[0].success();
+      requests[0].fail({ errMsg: 'reLaunch:fail' });
+      requests[0].success();
+      staleAction();
+      page.onShow();
+      page.runAiTurn();
+      page.onLeave();
+      assert.equal(requests.length, 1);
+      assert.equal(toasts.length, 0);
+      assert.equal(timers.count(), 0);
+      assert.equal(JSON.stringify(page.game), waitingState);
+      page.onUnload();
+    });
+  });
+});
+
+test('an unavailable or throwing navigation API leaves the battle playable', () => {
+  for (const navigation of [undefined, {}, { reLaunch() { throw new Error('navigation unavailable'); } }]) {
+    withFakeTimers((timers) => {
+      withWx(navigation, () => {
+        const page = createPageHarness();
+        tapCard(page, 0, 0);
+        tapCard(page, 1, 0);
+        const waitingState = JSON.stringify(page.game);
+        assert.doesNotThrow(() => page.onLeave());
+        assert.equal(JSON.stringify(page.game), waitingState);
+        assert.equal(timers.count(), 1);
+        timers.runNext();
+        assert.equal(page.game.currentPlayerIdx, 0);
+        tapCard(page, 0, 0);
+        tapCard(page, 1, 0);
+        assert.equal(page.game.players[1].cards[0].hp, 30);
+        assert.equal(page.data.playerActions, 2);
+        assert.equal(timers.count(), 1);
+        page.onUnload();
+      });
+    });
+  }
 });

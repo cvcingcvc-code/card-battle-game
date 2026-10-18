@@ -1,0 +1,111 @@
+<view class="home-page">
+  <view class="hero">
+    <image class="hero-art" src="/assets/hero.png" mode="aspectFill" aria-label="余烬战场上的奇幻对决" />
+    <view class="hero-shade"></view>
+    <view class="hero-mark">
+      <view class="mark-line"></view>
+      <view class="mark-diamond"></view>
+      <text class="hero-kicker">策略卡牌 · 单人对战</text>
+      <view class="mark-diamond"></view>
+      <view class="mark-line"></view>
+    </view>
+    <view class="hero-heading">
+      <text class="game-title">余烬对决</text>
+      <view class="title-rule"><view class="title-diamond"></view></view>
+      <text class="game-subtitle">六张卡牌，一场策略交锋</text>
+    </view>
+  </view>
+
+  <view class="home-content">
+    <view class="opening">
+      <text class="opening-description">集结龙、精灵与石像鬼。</text>
+      <text class="opening-description">在轮流攻防间，找到制胜的一击。</text>
+      <button class="start-button" bindtap="onStartBattle" disabled="{{isStarting || isOpeningAbout}}" loading="{{isStarting}}" hover-class="start-button-pressed" aria-label="开始对战">
+        <text>{{isStarting ? '正在进入战场' : '开始对战'}}</text>
+        <text wx:if="{{!isStarting}}" class="start-arrow">›</text>
+      </button>
+      <text class="opening-note">三位同伴 · 轮流攻防 · 每步皆有取舍</text>
+    </view>
+
+    <view class="roster-section">
+      <view class="section-heading">
+        <view class="heading-diamond ally-diamond"></view>
+        <text class="section-title">你的阵容</text>
+        <view class="heading-line"></view>
+        <text class="section-caption">并肩而战</text>
+      </view>
+      <view class="team-roster">
+        <view wx:for="{{teamCards}}" wx:key="id" class="companion-card {{index === 0 ? 'first-companion' : ''}}">
+          <view class="companion-portrait">
+            <image class="companion-art" src="{{item.art}}" mode="aspectFill" aria-label="{{item.name}}" />
+            <view class="portrait-shade"></view>
+          </view>
+          <view class="companion-copy">
+            <text class="companion-name">{{item.name}}</text>
+            <text class="companion-role">{{item.role}}</text>
+          </view>
+        </view>
+      </view>
+      <text class="roster-description">龙焰压阵，箭矢破敌，坚岩守护。</text>
+    </view>
+
+    <view class="enemy-panel">
+      <view class="enemy-title-row">
+        <view class="heading-diamond enemy-diamond"></view>
+        <text class="enemy-title">暗影已至</text>
+      </view>
+      <text class="enemy-names">骑士 · 暗影刺客 · 巨魔</text>
+      <text class="enemy-description">警惕刺客的高额伤害，也别让巨魔的震地击穿全队。先击败谁，由你决定。</text>
+    </view>
+
+    <view class="rules-section {{rulesExpanded ? 'rules-section-open' : ''}}">
+      <button class="rules-toggle" bindtap="onToggleRules" hover-class="rules-toggle-pressed" aria-label="{{rulesExpanded ? '收起玩法与技能' : '展开玩法与技能'}}">
+        <view class="rules-toggle-label">
+          <view class="rules-symbol">?</view>
+          <text>玩法与技能</text>
+        </view>
+        <text class="rules-toggle-icon">{{rulesExpanded ? '−' : '+'}}</text>
+      </button>
+      <view wx:if="{{rulesExpanded}}" class="rules-content">
+        <view class="rule-item">
+          <text class="rule-number">01</text>
+          <view class="rule-copy">
+            <text class="rule-title">轮流行动，普通攻击</text>
+            <text class="rule-description">每回合选择一张存活的己方卡牌，攻击一名敌人，造成等同攻击力的伤害。行动后，对手会自动反击。</text>
+          </view>
+        </view>
+        <view class="rule-item">
+          <text class="rule-number">02</text>
+          <view class="rule-copy">
+            <text class="rule-title">每局一次，把握技能时机</text>
+            <text class="rule-description">有技能的卡牌每局可释放一次。释放技能会占用本回合行动，伤害可以集中于单个目标，也能波及敌方全体。</text>
+          </view>
+        </view>
+        <view class="skills-list">
+          <view wx:for="{{skills}}" wx:key="name" class="skill-item">
+            <view class="skill-name-row">
+              <text class="skill-name">{{item.name}}</text>
+              <text class="skill-owner">{{item.cardName}}</text>
+            </view>
+            <text class="skill-description">{{item.description}}</text>
+          </view>
+        </view>
+        <view class="rule-item last-rule">
+          <text class="rule-number">03</text>
+          <view class="rule-copy">
+            <text class="rule-title">击败全部敌人，赢得胜利</text>
+            <text class="rule-description">生命降至零的卡牌会倒下，无法再行动。率先击败对方全部卡牌的一方获胜。</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="footer-ornament">
+      <view class="footer-line"></view>
+      <view class="mark-diamond"></view>
+      <view class="footer-line"></view>
+    </view>
+    <text class="footer-copy">余烬未熄，战意不止</text>
+    <button class="about-button" bindtap="onAbout" disabled="{{isStarting || isOpeningAbout}}" hover-class="about-button-pressed">关于游戏与隐私</button>
+  </view>
+</view>

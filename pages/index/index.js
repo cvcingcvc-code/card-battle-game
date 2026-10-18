@@ -7,6 +7,7 @@ const {
   selectAttacker,
   useSelectedCardSkill,
 } = require('../../game');
+const { getCardPresentation } = require('../../data/cards');
 
 function decorateCard(card, playerIndex, cardIndex, game, skillTargeting) {
   const hpPercent = Math.round((card.hp / card.maxHp) * 100);
@@ -33,6 +34,7 @@ function decorateCard(card, playerIndex, cardIndex, game, skillTargeting) {
     : '';
   return {
     ...card,
+    ...getCardPresentation(card.name),
     hpPercent,
     isDead: card.hp <= 0,
     isSelected,
@@ -80,6 +82,7 @@ Page({
   data: {
     players: [],
     selectedSkill: null,
+    selectedCardDetail: null,
     logs: [],
     logScrollTarget: '',
     turnLabel: '你的回合',
@@ -87,27 +90,70 @@ Page({
     statusTone: 'ready',
     gameOver: false,
     skillTargeting: false,
+    roundNumber: 1,
+    playerActions: 0,
+    damageDealt: 0,
+    damageTaken: 0,
+    skillsUsed: 0,
+    result: null,
+    isLeaving: false,
   },
 
   onLoad() {
-    this.game = createGame();
-    this.skillTargeting = false;
-    this.aiTimer = null;
-    this.logEntries = [];
-    this.logSequence = 0;
-    this.addLog('选择你的卡牌，再选择对手目标发起攻击。', 'info');
-    this.updateView();
+    this.isVisible = true;
+    this.isUnloaded = false;
+    this.isLeaving = false;
+    this.startBattle('选择你的卡牌，再选择对手目标发起攻击。');
+  },
+
+  onShow() {
+    if (this.isUnloaded) return;
+    this.isVisible = true;
+    this.scheduleAiTurn();
+  },
+
+  onHide() {
+    this.isVisible = false;
+    this.cancelAiTurn();
   },
 
   onUnload() {
-    if (this.aiTimer) clearTimeout(this.aiTimer);
+    this.isUnloaded = true;
+    this.isVisible = false;
+    this.isLeaving = false;
+    this.leaveVersion = (this.leaveVersion || 0) + 1;
+    this.cancelAiTurn();
+  },
+
+  startBattle(message) {
+    this.cancelAiTurn();
+    this.battleVersion = (this.battleVersion || 0) + 1;
+    this.game = createGame();
+    this.skillTargeting = false;
+    this.roundNumber = 1;
+    this.playerActions = 0;
+    this.statistics = { damageDealt: 0, damageTaken: 0, skillsUsed: 0 };
+    this.logEntries = [];
+    this.logSequence = 0;
+    this.addLog(message, 'info');
+    this.updateView();
+  },
+
+  cancelAiTurn() {
+    if (this.aiTimer !== null && this.aiTimer !== undefined) clearTimeout(this.aiTimer);
     this.aiTimer = null;
+    this.aiScheduleVersion = (this.aiScheduleVersion || 0) + 1;
+  },
+
+  getHealthSnapshot() {
+    return this.game.players.map((player) => player.cards.map((card) => card.hp));
   },
 
   updateView() {
     const players = this.game.players.map((player, playerIndex) => ({
       ...player,
       playerIndex,
+      aliveCount: player.cards.filter((card) => card.hp > 0).length,
       cards: player.cards.map((card, cardIndex) => (
         decorateCard(card, playerIndex, cardIndex, this.game, this.skillTargeting)
       )),
@@ -115,6 +161,9 @@ Page({
     const selectedCard = this.game.selectedCardIdx === null
       ? null
       : this.game.players[0].cards[this.game.selectedCardIdx];
+    const selectedCardDetail = selectedCard
+      ? { ...selectedCard, ...getCardPresentation(selectedCard.name) }
+      : null;
     const selectedSkill = selectedCard && selectedCard.skill
       ? {
         ...selectedCard.skill,
@@ -130,19 +179,39 @@ Page({
               : '释放技能',
       }
       : null;
+    const won = this.game.winnerIdx === 0;
+    const result = this.game.gameOver
+      ? {
+        won,
+        title: won ? '战斗胜利' : '战斗失利',
+        subtitle: won ? '你击倒了对手的全部卡牌。' : '你的队伍已全部倒下，调整出手顺序，再战一局。',
+        rounds: Math.max(1, this.playerActions),
+        survivors: this.game.players[0].cards.filter((card) => card.hp > 0).length,
+        ...this.statistics,
+      }
+      : null;
     this.setData({
       players,
       selectedSkill,
+      selectedCardDetail,
       skillTargeting: this.skillTargeting,
       ...getStatus(this.game, this.skillTargeting),
       gameOver: this.game.gameOver,
+      roundNumber: this.roundNumber,
+      playerActions: this.playerActions,
+      ...this.statistics,
+      result,
+      isLeaving: Boolean(this.isLeaving),
     });
   },
 
   onCardTap(event) {
-    if (this.game.gameOver) return;
+    if (this.isUnloaded || this.isLeaving || !this.isVisible || this.game.gameOver || this.game.currentPlayerIdx !== 0) return;
     const playerIndex = Number(event.currentTarget.dataset.playerIndex);
     const cardIndex = Number(event.currentTarget.dataset.cardIndex);
+    const player = this.game.players[playerIndex];
+    const card = player && player.cards[cardIndex];
+    if (!Number.isInteger(cardIndex) || !card || card.hp <= 0) return;
     if (playerIndex === 0) {
       if (selectAttacker(this.game, 0, cardIndex)) {
         this.skillTargeting = false;
@@ -152,17 +221,22 @@ Page({
     }
     if (playerIndex !== 1 || this.game.selectedCardIdx === null) return;
 
+    const healthBefore = this.getHealthSnapshot();
     const events = this.skillTargeting
       ? useSelectedCardSkill(this.game, cardIndex)
       : playPlayerAttack(this.game, 1, cardIndex);
-    if (events.length === 0) return;
+    if (events.length === 0) {
+      this.updateView();
+      return;
+    }
     this.skillTargeting = false;
-    this.addEvents(events);
+    this.addEvents(events, healthBefore);
     this.updateView();
     this.scheduleAiTurn();
   },
 
   onUseSkill() {
+    if (this.isUnloaded || this.isLeaving || !this.isVisible || this.game.gameOver || this.game.currentPlayerIdx !== 0) return;
     const selectedCard = this.game.selectedCardIdx === null
       ? null
       : this.game.players[0].cards[this.game.selectedCardIdx];
@@ -173,35 +247,69 @@ Page({
       return;
     }
 
+    const healthBefore = this.getHealthSnapshot();
     const events = useSelectedCardSkill(this.game);
-    if (events.length === 0) return;
+    if (events.length === 0) {
+      this.updateView();
+      return;
+    }
     this.skillTargeting = false;
-    this.addEvents(events);
+    this.addEvents(events, healthBefore);
     this.updateView();
     this.scheduleAiTurn();
   },
 
   scheduleAiTurn() {
-    if (this.game.currentPlayerIdx === 1 && !this.game.gameOver) {
-      this.aiTimer = setTimeout(() => this.runAiTurn(), 600);
-    }
+    if (this.isUnloaded || this.isLeaving || !this.isVisible || !this.game || this.game.gameOver || this.game.currentPlayerIdx !== 1) return;
+    if (this.aiTimer !== null) return;
+    const game = this.game;
+    const battleVersion = this.battleVersion;
+    const scheduleVersion = this.aiScheduleVersion;
+    this.aiTimer = setTimeout(() => {
+      if (this.game !== game || this.battleVersion !== battleVersion || this.aiScheduleVersion !== scheduleVersion) return;
+      this.runAiTurn();
+    }, 600);
   },
 
   runAiTurn() {
-    this.aiTimer = null;
+    this.cancelAiTurn();
+    if (this.isUnloaded || this.isLeaving || !this.isVisible || !this.game || this.game.gameOver || this.game.currentPlayerIdx !== 1) return;
+    const healthBefore = this.getHealthSnapshot();
     const events = playAiTurn(this.game);
     if (events.length === 0) return;
-    this.addEvents(events);
+    if (!this.game.gameOver && events.some((event) => event.type === 'attack' || event.type === 'skill')) {
+      this.roundNumber += 1;
+    }
+    this.addEvents(events, healthBefore);
     this.updateView();
   },
 
-  addEvents(events) {
+  addEvents(events, healthBefore) {
+    const healthRemaining = healthBefore
+      ? healthBefore.map((cards) => cards.slice())
+      : null;
+    const usedSkills = new Set();
+    if (events.some((event) => (event.type === 'attack' || event.type === 'skill') && event.attackerPlayerIdx === 0)) {
+      this.playerActions += 1;
+    }
     events.forEach((event) => {
       if (event.type === 'attack' || event.type === 'skill') {
         const attacker = this.game.players[event.attackerPlayerIdx];
         const target = this.game.players[event.targetPlayerIdx];
         const attackerCard = attacker.cards[event.attackerCardIdx];
         const targetCard = target.cards[event.targetCardIdx];
+        const effectiveDamage = healthRemaining
+          ? Math.min(event.damage, Math.max(0, healthRemaining[event.targetPlayerIdx][event.targetCardIdx]))
+          : event.damage;
+        if (healthRemaining) {
+          healthRemaining[event.targetPlayerIdx][event.targetCardIdx] -= effectiveDamage;
+        }
+        if (event.attackerPlayerIdx === 0) {
+          this.statistics.damageDealt += effectiveDamage;
+          if (event.type === 'skill') usedSkills.add(`${event.attackerCardIdx}:${event.skillName}`);
+        } else {
+          this.statistics.damageTaken += effectiveDamage;
+        }
         const action = event.type === 'skill' ? `施放 ${event.skillName} 攻击` : '攻击';
         this.addLog(
           `${attacker.name} 的 ${attackerCard.name} ${action} ${target.name} 的 ${targetCard.name}，造成 ${event.damage} 点伤害。`,
@@ -212,6 +320,7 @@ Page({
         this.addLog(`战斗结束，${this.game.players[event.winnerIdx].name} 获胜！`, 'result');
       }
     });
+    this.statistics.skillsUsed += usedSkills.size;
   },
 
   addLog(message, tone) {
@@ -224,13 +333,37 @@ Page({
   },
 
   onReset() {
-    if (this.aiTimer) clearTimeout(this.aiTimer);
-    this.aiTimer = null;
-    this.game = createGame();
-    this.skillTargeting = false;
-    this.logEntries = [];
-    this.logSequence = 0;
-    this.addLog('新战斗开始，轮到你行动。', 'info');
-    this.updateView();
+    if (this.isUnloaded || this.isLeaving) return;
+    this.startBattle('新战斗开始，轮到你行动。');
+  },
+
+  onLeave() {
+    if (this.isUnloaded || this.isLeaving || typeof wx === 'undefined' || typeof wx.reLaunch !== 'function') return;
+    const navigation = wx;
+    this.isLeaving = true;
+    this.setData({ isLeaving: true });
+    this.cancelAiTurn();
+    this.leaveVersion = (this.leaveVersion || 0) + 1;
+    const leaveVersion = this.leaveVersion;
+    const recover = () => {
+      if (this.isUnloaded || this.leaveVersion !== leaveVersion || !this.isLeaving) return;
+      this.isLeaving = false;
+      this.setData({ isLeaving: false });
+      this.scheduleAiTurn();
+      if (typeof navigation.showToast === 'function') {
+        navigation.showToast({ title: '返回首页失败，请重试', icon: 'none' });
+      }
+    };
+    try {
+      navigation.reLaunch({
+        url: '/pages/home/home',
+        success: () => {
+          if (this.leaveVersion === leaveVersion && this.isLeaving) this.onUnload();
+        },
+        fail: recover,
+      });
+    } catch (error) {
+      recover();
+    }
   },
 });

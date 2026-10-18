@@ -108,6 +108,7 @@ const {
 } = window.CardBattleGame;
 
 let game = createGame();
+let aiTimer = null;
 
 function render() {
   // 渲染双方卡牌
@@ -194,24 +195,26 @@ function executeAttack(targetPlayerIdx, targetCardIdx) {
 
   // AI 回合
   if (game.currentPlayerIdx === 1 && !game.gameOver) {
-    setTimeout(aiTurn, 800);
+    aiTimer = setTimeout(aiTurn, 800);
   }
 }
 
 function aiTurn() {
+  aiTimer = null;
   renderEvents(playAiTurn(game));
   render();
 }
 
 function renderEvents(events) {
   events.forEach((event) => {
-    if (event.type === 'attack') {
+    if (event.type === 'attack' || event.type === 'skill') {
       const attacker = game.players[event.attackerPlayerIdx];
       const attackerCard = attacker.cards[event.attackerCardIdx];
       const defender = game.players[event.targetPlayerIdx];
       const targetCard = defender.cards[event.targetCardIdx];
 
-      addLog(`${attacker.name} 的 ${attackerCard.name} 攻击 ${defender.name} 的 ${targetCard.name}，造成 ${event.damage} 点伤害`,
+      const action = event.type === 'skill' ? `使用 ${event.skillName} 攻击` : '攻击';
+      addLog(`${attacker.name} 的 ${attackerCard.name} ${action} ${defender.name} 的 ${targetCard.name}，造成 ${event.damage} 点伤害`,
         event.killedCardName ? 'log-kill' : 'log-hit');
       if (event.killedCardName) addLog(`${event.killedCardName} 被击倒！`, 'log-kill');
     } else if (event.type === 'victory') {
@@ -230,6 +233,8 @@ function addLog(msg, cls) {
 }
 
 function resetGame() {
+  clearTimeout(aiTimer);
+  aiTimer = null;
   game = createGame();
   document.getElementById('log').innerHTML = '';
   addLog('新战斗开始！', 'log-info');

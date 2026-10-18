@@ -1,0 +1,9 @@
+.about-page { min-height: 100vh; padding: 44rpx 32rpx 36rpx; padding-bottom: calc(36rpx + constant(safe-area-inset-bottom)); padding-bottom: calc(36rpx + env(safe-area-inset-bottom)); background: #0b1116; }
+.about-kicker { display: block; color: #bd9f6b; font-size: 21rpx; letter-spacing: 6rpx; }
+.about-title { display: block; margin-top: 20rpx; color: #f0dfbc; font-size: 56rpx; font-weight: 700; letter-spacing: 5rpx; }
+.about-version { display: block; margin-top: 14rpx; color: #a9b5ac; font-size: 27rpx; }
+.about-panel { margin-top: 30rpx; padding: 28rpx; border: 1rpx solid #34413d; border-radius: 12rpx; background: #151e25; }
+.section-title { display: block; color: #dfc58e; font-size: 30rpx; font-weight: 600; line-height: 1.6; }
+.body-copy { display: block; margin-top: 18rpx; color: #bbc6bc; font-size: 28rpx; line-height: 1.85; }
+.return-button { height: 112rpx; margin-top: 34rpx; border: 1rpx solid #d7b77c; border-radius: 12rpx; background: #c8a66a; color: #1a211b; font-size: 30rpx; font-weight: 600; line-height: 110rpx; }
+.return-button-pressed { background: #dfbf86; }

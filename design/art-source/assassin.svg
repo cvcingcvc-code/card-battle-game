@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="500" viewBox="0 0 400 500"><defs>
+      <linearGradient id="bg" x2="0" y2="1"><stop stop-color="#2b293e"/><stop offset="1" stop-color="#0b1116"/></linearGradient>
+      <radialGradient id="aura"><stop stop-color="#b09bbe" stop-opacity=".18"/><stop offset="1" stop-color="#b09bbe" stop-opacity="0"/></radialGradient>
+      <linearGradient id="metal" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#cbd4ce"/><stop offset=".36" stop-color="#778d89"/><stop offset="1" stop-color="#273e43"/></linearGradient>
+      <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#e4c58a"/><stop offset="1" stop-color="#8f683d"/></linearGradient>
+      <linearGradient id="cloak" x2=".8" y2="1"><stop stop-color="#b09bbe"/><stop offset="1" stop-color="#2b293e"/></linearGradient>
+      <linearGradient id="fade" x2="0" y2="1"><stop offset=".68" stop-color="#0b1116" stop-opacity="0"/><stop offset="1" stop-color="#0b1116" stop-opacity=".95"/></linearGradient>
+    </defs><path fill="url(#bg)" d="M0 0h400v500H0z"/>
+    <ellipse cx="202" cy="217" rx="210" ry="220" fill="url(#aura)"/>
+    <circle cx="200" cy="201" r="139" fill="none" stroke="#b09bbe" stroke-opacity=".17"/>
+    <path d="M63 201a137 137 0 0 1 274 0M200 53v16M200 332v17M47 201h18M336 201h17" fill="none" stroke="#b09bbe" stroke-opacity=".4" stroke-width="1"/>
+    <path d="M200 61l5 8-5 8-5-8zM60 201l5-5 5 5-5 5zM330 201l5-5 5 5-5 5z" fill="#b09bbe" opacity=".45"/>
+    <circle cx="36" cy="91" r="1" fill="#b09bbe" opacity=".4"/><circle cx="85" cy="37" r="1.3" fill="#b09bbe" opacity=".4"/><circle cx="321" cy="73" r="1" fill="#b09bbe" opacity=".4"/><circle cx="358" cy="165" r="1.5" fill="#b09bbe" opacity=".4"/><circle cx="58" cy="292" r="1.4" fill="#b09bbe" opacity=".4"/><circle cx="344" cy="348" r="1" fill="#b09bbe" opacity=".4"/><circle cx="284" cy="30" r="1" fill="#b09bbe" opacity=".4"/><circle cx="23" cy="382" r="1" fill="#b09bbe" opacity=".4"/>
+    <path fill="#101c21" d="M0 427l60-90 48 44 50-76 47 60 60-42 65 47 70-65v195H0z"/>
+    <path fill="#0c151a" d="M0 466l89-61 73 33 64-35 86 30 88-41v108H0z"/>
+  <path fill="#2f2b48" d="M61 457l30-108 51-41h99l62 41 40 108z"/>
+  <path fill="#57506f" d="M95 347l48-39 57 37-61 60-60-10zM202 345l39-37 62 41 20 50-58 12z"/>
+  <path fill="#26283f" d="M143 350l56-5 67 60-27 55h-95l-23-57z"/>
+  <path fill="#7b6684" d="M143 308l56 37-39 31-49-22zM202 345l39-37 37 27-39 43z"/>
+  <path fill="#3e3655" d="M139 255l-4-68 29-55 48-19 49 41 17 81-33 76-48 24-51-26z"/>
+  <path fill="#6f5b7c" d="M135 187l29-55 48-19-25 57-33 44z"/>
+  <path fill="#51435f" d="M212 113l49 41 17 81-51-36-40-29z"/>
+  <path fill="#171d2e" d="M154 214l33-44 40 29 27 40-26 54-34 14-39-37z"/>
+  <path fill="#3f364f" d="M155 242l41 20 44-19-12 50-34 14-39-37z"/>
+  <path fill="#8f758f" d="M154 214l33-44-13 46-21 27z"/>
+  <path fill="#af9aae" d="M162 234l24 5 4 7-23-4zM211 239l27-9-6 10-23 8z"/>
+  <path fill="#d8c8ba" d="M167 236l14 4-8 1zM218 238l15-5-7 6z"/>
+  <path fill="#26263d" d="M155 268l39 39 34-14 12-28-34 17z"/>
+  <path fill="#8c7391" d="M128 275l26 22 41 11-26 32-29-32zM236 294l31-34-11 61-34 34-25-21z"/>
+  <path fill="#ae929e" d="M190 324l10-10 10 10-10 16z"/>
+  <path d="M119 355l135 94M266 356L145 450" stroke="#171f2e" stroke-width="18"/>
+  <path d="M119 355l135 94M266 356L145 450" stroke="#89705f" stroke-width="10"/>
+  <path fill="#c8a66a" d="M176 384l17-18 12 9-17 18zM220 392l-13-10 12-12 13 10z"/>
+  <path fill="#38404e" d="M84 382l34-3 27 47-32 23-32-25zM270 381l34 2 17 43-35 23-27-26z"/>
+  <path fill="#8c7890" d="M84 382l34-3 12 21-48 11zM270 381l34 2 10 25-46-7z"/>
+  <path fill="url(#metal)" d="M99 395l-37-93-1-52 34 40 24 99zM283 394l26-102 31-39v51l-38 97z"/>
+  <path fill="#c4bfc3" d="M61 250l20 49 18 96 6-2-10-103zM340 253l-23 51-24 92 9 5 38-97z"/>
+  <path fill="#c8a66a" d="M82 394l43-15 3 8-44 16zM270 380l46 15-3 8-46-15z"/>
+  <path d="M38 339l38-20M324 354l36-23M74 176l23-16" stroke="#ac8ca0" stroke-opacity=".3"/>
+<path fill="url(#fade)" d="M0 0h400v500H0z"/></svg>

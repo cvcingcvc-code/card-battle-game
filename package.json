@@ -3,6 +3,11 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "package:weapp": "node scripts/package-weapp.js",
+    "verify": "npm test && node scripts/check-release.js --code-only",
+    "release:check": "node scripts/check-release.js",
+    "package:release": "node scripts/package-release.js",
+    "archive:source": "node scripts/archive-source.js"
   }
 }

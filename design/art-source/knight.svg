@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="500" viewBox="0 0 400 500"><defs>
+      <linearGradient id="bg" x2="0" y2="1"><stop stop-color="#29363b"/><stop offset="1" stop-color="#0b1116"/></linearGradient>
+      <radialGradient id="aura"><stop stop-color="#c8a66a" stop-opacity=".18"/><stop offset="1" stop-color="#c8a66a" stop-opacity="0"/></radialGradient>
+      <linearGradient id="metal" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#cbd4ce"/><stop offset=".36" stop-color="#778d89"/><stop offset="1" stop-color="#273e43"/></linearGradient>
+      <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#e4c58a"/><stop offset="1" stop-color="#8f683d"/></linearGradient>
+      <linearGradient id="cloak" x2=".8" y2="1"><stop stop-color="#c8a66a"/><stop offset="1" stop-color="#29363b"/></linearGradient>
+      <linearGradient id="fade" x2="0" y2="1"><stop offset=".68" stop-color="#0b1116" stop-opacity="0"/><stop offset="1" stop-color="#0b1116" stop-opacity=".95"/></linearGradient>
+    </defs><path fill="url(#bg)" d="M0 0h400v500H0z"/>
+    <ellipse cx="202" cy="217" rx="210" ry="220" fill="url(#aura)"/>
+    <circle cx="200" cy="201" r="139" fill="none" stroke="#c8a66a" stroke-opacity=".17"/>
+    <path d="M63 201a137 137 0 0 1 274 0M200 53v16M200 332v17M47 201h18M336 201h17" fill="none" stroke="#c8a66a" stroke-opacity=".4" stroke-width="1"/>
+    <path d="M200 61l5 8-5 8-5-8zM60 201l5-5 5 5-5 5zM330 201l5-5 5 5-5 5z" fill="#c8a66a" opacity=".45"/>
+    <circle cx="36" cy="91" r="1" fill="#c8a66a" opacity=".4"/><circle cx="85" cy="37" r="1.3" fill="#c8a66a" opacity=".4"/><circle cx="321" cy="73" r="1" fill="#c8a66a" opacity=".4"/><circle cx="358" cy="165" r="1.5" fill="#c8a66a" opacity=".4"/><circle cx="58" cy="292" r="1.4" fill="#c8a66a" opacity=".4"/><circle cx="344" cy="348" r="1" fill="#c8a66a" opacity=".4"/><circle cx="284" cy="30" r="1" fill="#c8a66a" opacity=".4"/><circle cx="23" cy="382" r="1" fill="#c8a66a" opacity=".4"/>
+    <path fill="#101c21" d="M0 427l60-90 48 44 50-76 47 60 60-42 65 47 70-65v195H0z"/>
+    <path fill="#0c151a" d="M0 466l89-61 73 33 64-35 86 30 88-41v108H0z"/>
+  <path fill="#493b2d" d="M99 327l-31 131h269l-31-132-94-27z"/>
+  <path fill="#8c6d42" d="M100 330L78 458h64l38-139zM235 315l45 143h46l-22-131z"/>
+  <path fill="#c8a66a" d="M100 330l42 128 10-96 28-43z"/>
+  <path fill="#42575b" d="M123 330l50-28h62l43 28-15 119H139z"/>
+  <path fill="url(#metal)" d="M143 328l32-26h58l30 24-11 80-52 39-48-40z"/>
+  <path fill="#a0b1a8" d="M143 328l57 34-48 43z"/>
+  <path fill="#456067" d="M200 362l63-36-11 80-52 39z"/>
+  <path fill="url(#gold)" d="M174 351l27-12 28 12-8 39-21 21-20-21z"/>
+  <path fill="#315051" d="M200 350l16 9-5 25-11 12-10-12-5-25z"/>
+  <path fill="#92c5b0" d="M200 355l7 18-7 15-7-15z"/>
+  <path fill="url(#metal)" d="M72 332l50-24 35 16-13 48-56 13-29-22zM247 324l34-17 53 26 13 31-32 23-57-17z"/>
+  <path fill="#c8a66a" d="M71 331l51-23 34 15-5 12-30-14-45 22zM247 324l34-17 53 26 5 12-58-23-29 15z"/>
+  <path fill="#253d44" d="M87 386l55-15-11 71H92zM259 371l56 16-5 55-42-1z"/>
+  <path fill="#758e8a" d="M173 293l-3 30 30 22 33-24-3-28z"/>
+  <path fill="#344f56" d="M200 302v42l33-23-3-28z"/>
+  <path fill="#c8a66a" d="M167 169l17-46 29-18 17 63z"/>
+  <path fill="#e0c48c" d="M184 123l29-18-4 66-23 3z"/>
+  <path fill="url(#metal)" d="M133 203l29-42 58-12 40 32 15 58-25 55-48 29-49-29-27-52z"/>
+  <path fill="#9db0a7" d="M133 203l29-42 38 27-2 39-48 7z"/>
+  <path fill="#597678" d="M200 188l20-39 40 32 15 58-57-11z"/>
+  <path fill="#d4c49d" d="M132 212l66 15 72-13 5 25-69 17-80-14z"/>
+  <path fill="#182d35" d="M143 225l55 12 60-12-3 14-52 12-58-13z"/>
+  <path fill="#8fc8b0" d="M151 229l33 7v4l-31-7zM217 237l33-7-1 4-32 7z"/>
+  <path fill="#83978d" d="M126 242l72 18 4 63-49-29z"/>
+  <path fill="#3b565e" d="M198 260l77-21-25 55-48 29z"/>
+  <path fill="#c8a66a" d="M197 191l9-3 3 70-7 65-6-5 2-59z"/>
+  <path d="M154 267l6 12M167 271l5 12M235 268l-5 14M247 264l-5 13" stroke="#223b43" stroke-width="3"/>
+  <path fill="#152a31" stroke="#7e928a" stroke-width="3" d="M53 369l66-16 44 33-6 72-57 32-49-49z"/>
+  <path fill="#28464a" d="M64 379l54-13 33 27-6 60-44 24-38-40z"/>
+  <path fill="#c8a66a" d="M105 385l7 26 26 7-26 7-7 29-7-29-24-7 24-7z"/>
+  <path fill="url(#metal)" d="M306 276l7-31 9 31-4 138h-10z"/>
+  <path fill="#c8a66a" d="M293 401h41v8h-41zM308 414h11v36h-11z"/>
+<path fill="url(#fade)" d="M0 0h400v500H0z"/></svg>
