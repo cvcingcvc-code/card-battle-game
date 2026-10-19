@@ -278,6 +278,12 @@ test('a complete winning match records exact totals and resets all match state',
   assert.deepEqual(view.result, {
     won: true, title: '战斗胜利', subtitle: '你击倒了对手的全部卡牌。',
     rounds: 9, survivors: 1, damageDealt: 175, damageTaken: 213, skillsUsed: 2,
+    stars: 2,
+    objectives: [
+      { id: 'victory', label: '赢得本场对决', achieved: true },
+      { id: 'swift', label: '9次行动内取胜', achieved: true },
+      { id: 'survivors', label: '取胜时至少一人保有半数生命', achieved: false },
+    ],
   });
   assert.equal(harness.active.size, 0);
   assert.ok(view.logs.some((entry) => entry.message.includes('震地')));
@@ -314,6 +320,12 @@ test('a complete losing match ends on the actual round with capped damage totals
   assert.deepEqual(view.result, {
     won: false, title: '战斗失利', subtitle: '你的队伍已全部倒下，调整出手顺序，再战一局。',
     rounds: 7, survivors: 0, damageDealt: 85, damageTaken: 220, skillsUsed: 0,
+    stars: 0,
+    objectives: [
+      { id: 'victory', label: '赢得本场对决', achieved: false },
+      { id: 'swift', label: '9次行动内取胜', achieved: false },
+      { id: 'survivors', label: '取胜时至少一人保有半数生命', achieved: false },
+    ],
   });
   assert.equal(harness.active.size, 0);
   assert.ok(view.logs.some((entry) => entry.message.includes('玩家B 获胜')));

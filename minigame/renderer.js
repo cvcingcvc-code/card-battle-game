@@ -9,7 +9,7 @@ const COLORS = {
 
 function createRenderer({
   context, images = {}, width = 375, height = 812, safeTop = 0, safeBottom = 0,
-  app = { name: '余烬对决', version: '1.0.0' },
+  app = { name: '余烬对决', version: '1.1.0' },
 } = {}) {
   if (!context) throw new Error('createRenderer 需要 Canvas 2D context。');
   const ctx = context;
@@ -163,6 +163,75 @@ function createRenderer({
     y = divider(y + 18);
     return y + text('余烬未熄，战意不止', 20, y, 335, { size: 12, color: COLORS.quiet, align: 'center' }) + 20;
   }
+  function isTrial(view) {
+    return view.isTrial === true || Boolean(view.selectedModeId && view.selectedModeId !== 'classic');
+  }
+  function drawChoices(title, choices, selectedId, actionType, actionField, y, accent = COLORS.gold) {
+    if (!choices.length) return y;
+    y = sectionHeading(title, y, accent, '三选一');
+    const columns = Math.min(3, choices.length);
+    const w = (335 - (columns - 1) * 10) / columns;
+    for (let start = 0; start < choices.length; start += columns) {
+      const row = choices.slice(start, start + columns);
+      const layouts = row.map((choice) => {
+        const titleH = textHeight(choice.name || '', w - 20, 15, 23, 'bold');
+        const descriptionH = textHeight(choice.description || '', w - 20, 13, 21);
+        return { titleH, descriptionH, height: Math.max(touchHeight(), titleH + descriptionH + 65) };
+      });
+      const rowHeight = Math.max(...layouts.map((layout) => layout.height));
+      row.forEach((choice, index) => {
+        const x = 20 + index * (w + 10);
+        const selected = selectedId ? choice.id === selectedId : choice.selected === true;
+        panel(x, y, w, rowHeight, selected ? '#24251f' : COLORS.panel, selected ? accent : COLORS.border);
+        if (selected) {
+          roundedPath(x + 2, y + 2, w - 4, rowHeight - 4, 7);
+          ctx.strokeStyle = accent; ctx.lineWidth = 1; ctx.stroke();
+        }
+        text(choice.name || '', x + 10, y + 16, w - 20,
+          { size: 15, lineHeight: 23, weight: 'bold', color: selected ? COLORS.goldLight : COLORS.text, align: 'center' });
+        text(choice.description || '', x + 10, y + 24 + layouts[index].titleH, w - 20,
+          { size: 13, lineHeight: 21, color: COLORS.muted, align: 'center' });
+        text(selected ? '◆ 已选择' : '点击选择', x + 8, y + rowHeight - 30, w - 16,
+          { size: 12, lineHeight: 18, color: selected ? accent : COLORS.quiet, align: 'center' });
+        region({ type: actionType, [actionField]: choice.id }, x, y, w, rowHeight);
+      });
+      y += rowHeight + 12;
+    }
+    return y + 12;
+  }
+  function drawObjectives(objectives, y, { final = false, won = false } = {}) {
+    if (!Array.isArray(objectives) || !objectives.length) return y;
+    const labelWidth = final ? 213 : 283;
+    const rowHeights = objectives.map((objective) => Math.max(22, textHeight(objective.label || '', labelWidth, 13, 22)));
+    const h = 49 + rowHeights.reduce((sum, value) => sum + value + 8, 0);
+    panel(20, y, 335, h, COLORS.panelDark, '#4b4c3b');
+    text(final ? '目标结算' : '本局目标 · 获胜后评定星级', 36, y + 14, 303,
+      { size: 13, lineHeight: 21, color: COLORS.goldLight, weight: 'bold' });
+    let rowY = y + 43;
+    objectives.forEach((objective, index) => {
+      const achieved = final ? won && objective.achieved === true : objective.achieved === true;
+      diamond(40, rowY + 9, achieved ? COLORS.ally : COLORS.quiet, 3);
+      text(objective.label || '', 54, rowY, labelWidth,
+        { size: 13, lineHeight: 22, color: achieved ? COLORS.ally : COLORS.muted });
+      if (final) text(achieved ? '已达成' : '未达成', 278, rowY, 61,
+        { size: 12, lineHeight: 22, color: achieved ? COLORS.ally : COLORS.quiet, align: 'right' });
+      rowY += rowHeights[index] + 8;
+    });
+    return y + h + 16;
+  }
+  function drawEncounter(view, y) {
+    if (view.modeName || view.modeDescription) {
+      const title = `${view.modeName || '经典对决'}${isTrial(view) && view.blessingName ? ` · ${view.blessingName}` : ''}`;
+      const titleH = textHeight(title, 303, 16, 25, 'bold');
+      const bodyH = view.modeDescription ? textHeight(view.modeDescription, 303, 13, 22) + 8 : 0;
+      panel(20, y, 335, titleH + bodyH + 32, COLORS.panel, '#5d5038');
+      text(title, 36, y + 15, 303, { size: 16, lineHeight: 25, weight: 'bold', color: COLORS.goldLight });
+      if (view.modeDescription) text(view.modeDescription, 36, y + titleH + 23, 303,
+        { size: 13, lineHeight: 22, color: COLORS.muted });
+      y += titleH + bodyH + 48;
+    }
+    return view.result ? y : drawObjectives(view.objectives, y);
+  }
 
   function drawHome(view) {
     const top = topInset();
@@ -175,9 +244,28 @@ function createRenderer({
     let y = top + 294;
     y += text('集结龙、精灵与石像鬼。\n在轮流攻防间，找到制胜的一击。', 20, y, 335,
       { size: 14, lineHeight: 23, color: COLORS.muted, align: 'center' });
+    if (view.modeName) {
+      y += 14;
+      y += text(`当前选择：${view.modeName}${isTrial(view) && view.blessingName ? ` · ${view.blessingName}` : ''}`, 20, y, 335,
+        { size: 14, lineHeight: 23, color: COLORS.goldLight, weight: 'bold', align: 'center' });
+    }
     y = button('开始对战  ›', { type: 'start' }, 20, y + 22, 335, { primary: true, size: 18 });
     y += 12;
     y += text('三位同伴 · 轮流攻防 · 每步皆有取舍', 20, y, 335, { size: 12, color: COLORS.quiet, align: 'center' });
+    const modes = Array.isArray(view.modes) ? view.modes : [];
+    if (modes.length) {
+      y = drawChoices('选择战场', modes, view.selectedModeId, 'mode', 'modeId', y + 30);
+      if (isTrial(view)) {
+        y = drawChoices('携带祝福', Array.isArray(view.blessings) ? view.blessings : [],
+          view.selectedBlessingId, 'blessing', 'blessingId', y + 4, COLORS.ally);
+        y += text('祝福仅强化己方，进入试炼后整局生效。', 20, y, 335,
+          { size: 13, lineHeight: 22, color: COLORS.muted, align: 'center' }) + 16;
+      } else {
+        y += text('经典对决沿用原始卡牌数值，不携带祝福。', 20, y, 335,
+          { size: 13, lineHeight: 22, color: COLORS.muted, align: 'center' }) + 16;
+      }
+      y = button('以当前配置出战', { type: 'start' }, 20, y + 4, 335, { primary: true, size: 16 });
+    }
     y = sectionHeading('你的阵容', y + 32, COLORS.ally, '并肩而战');
     const cards = view.teamCards || [];
     const cardWidth = 105;
@@ -218,9 +306,12 @@ function createRenderer({
     const lifeY = attackY + 24;
     const lifeLabel = `生命 ${card.hp == null ? 0 : card.hp}/${card.maxHp == null ? 0 : card.maxHp}`;
     const healthY = lifeY + textHeight(lifeLabel, w - 16, 12, 18) + 3;
-    const skillY = healthY + 13;
+    const shieldLabel = card.shieldLabel || (Number(card.shield) > 0 ? `护盾 ${card.shield}` : '');
+    const shieldY = healthY + 13;
+    const shieldH = shieldLabel ? textHeight(shieldLabel, w - 16, 12, 18) + 5 : 0;
+    const skillY = shieldY + shieldH;
     const heightForCard = skillY + textHeight(card.skillLabel || card.tag || '普通攻击', w - 16, 12, 18) + 14;
-    return { nameY, roleY, attackY, lifeY, lifeLabel, healthY, skillY, height: heightForCard };
+    return { nameY, roleY, attackY, lifeY, lifeLabel, healthY, shieldY, shieldLabel, skillY, height: heightForCard };
   }
   function drawCard(card, x, y, w, h, playerIndex, cardIndex) {
     const layout = cardLayout(card, w);
@@ -244,6 +335,8 @@ function createRenderer({
     const fill = Math.max(0, Math.min(1, hpPercent / 100));
     panel(x + 8, y + layout.healthY, w - 16, 5, '#29343a', null, 2);
     if (fill > 0) panel(x + 8, y + layout.healthY, (w - 16) * fill, 5, fill <= 0.25 ? COLORS.enemy : accent, null, 2);
+    if (layout.shieldLabel) text(layout.shieldLabel, x + 8, y + layout.shieldY, w - 16,
+      { size: 12, lineHeight: 18, color: card.isDead ? COLORS.quiet : '#a7c9dd', weight: 'bold' });
     text(card.skillLabel || card.tag || '普通攻击', x + 8, y + layout.skillY, w - 16,
       { size: 12, lineHeight: 18, color: card.isDead ? COLORS.quiet : COLORS.goldLight });
     if (!card.isDead && (card.canSelect || card.canTarget)) region({ type: 'card', playerIndex, cardIndex }, x, y, w, h);
@@ -278,6 +371,18 @@ function createRenderer({
     });
     y += boxH + 12;
     y += text(`承受伤害 ${result.damageTaken || 0}  ·  使用技能 ${result.skillsUsed || 0} 次`, 20, y, 335, { size: 13, color: COLORS.muted, align: 'center' });
+    if (Number.isFinite(result.stars) || Array.isArray(result.objectives) && result.objectives.length) {
+      const stars = result.won ? Math.min(3, Math.max(0, Math.floor(Number(result.stars) || 0))) : 0;
+      y += 18;
+      panel(20, y, 335, 92, COLORS.panelDark, '#615137');
+      text(`星级评定 · ${stars} / 3`, 36, y + 13, 303,
+        { size: 14, lineHeight: 23, weight: 'bold', color: COLORS.goldLight, align: 'center' });
+      for (let index = 0; index < 3; index += 1) {
+        text(index < stars ? '★' : '☆', 126 + index * 42, y + 43, 39,
+          { size: 29, lineHeight: 37, color: index < stars ? COLORS.gold : COLORS.quiet, align: 'center' });
+      }
+      y = drawObjectives(result.objectives, y + 108, { final: true, won: Boolean(result.won) });
+    }
     y = button('再战一局', { type: 'reset' }, 20, y + 18, 335, { primary: true });
     y = button('返回营地', { type: 'home' }, 20, y + 12, 335);
     return y + 28;
@@ -304,6 +409,7 @@ function createRenderer({
   }
   function drawBattle(view) {
     let y = header('古境战场', `第 ${view.roundNumber || 1} 回合 · 以谋略点燃余烬`, { type: 'home' }, '营地');
+    y = drawEncounter(view, y);
     if (view.result) y = drawResult(view.result, y);
     else {
       const status = view.statusText || '选择一张己方卡牌作为攻击者';
@@ -323,7 +429,11 @@ function createRenderer({
     if (!view.result) {
       const selected = view.selectedCardDetail;
       const title = selected ? `${selected.name} · ${selected.role || '战场单位'}` : '每一次出手，都有取舍。';
-      const description = selected ? selected.description || '' : '选中己方卡牌查看能力，再选择敌方目标。击败所有敌人，即可赢得对决。';
+      let description = selected ? selected.description || '' : '选中己方卡牌查看能力，再选择敌方目标。击败所有敌人，即可赢得对决。';
+      if (selected && (Number(selected.shield) > 0 || view.selectedModeId === 'bastion')) {
+        const shield = Math.max(0, Number(selected.shield) || 0);
+        description += `\n护盾先吸收普通攻击与技能伤害，耗尽后才扣除生命。当前护盾 ${shield}。`;
+      }
       const hint = view.skillTargeting ? '正在瞄准：选择敌方目标释放技能，或取消技能选择。'
         : selected ? '点击敌方卡牌普通攻击，或把握时机释放主动技能。' : '';
       const titleH = textHeight(title, 303, 16, 24, 'bold');
@@ -387,6 +497,16 @@ function createRenderer({
       y += titleH + bodyH + 50;
     }
     y = ruleBlock('03', '击败全部敌人，赢得胜利', '生命降至零的卡牌会倒下，无法再行动。率先击败对方全部卡牌的一方获胜。战后可以再次挑战，所有生命与技能都会重置。', y + 4);
+    const modes = Array.isArray(view.modes) ? view.modes : [];
+    const modeRules = modes.length ? modes.map((mode) => `${mode.name}：${mode.description}`).join('\n\n')
+      : '经典对决沿用原始卡牌数值。\n\n疾风试炼：双方所有卡牌的普通攻击力 +6。\n\n铁壁试炼：双方所有卡牌开局获得 18 点护盾。';
+    y = ruleBlock('04', '三种战场，各有取舍', modeRules, y + 4);
+    const blessings = Array.isArray(view.blessings) ? view.blessings : [];
+    const blessingRules = blessings.length ? blessings.map((blessing) => `${blessing.name}：${blessing.description}`).join('\n\n')
+      : '利刃：己方所有卡牌的普通攻击力 +5。\n\n活力：己方所有卡牌的生命上限 +20。\n\n灵火：己方所有主动技能的伤害 +8。';
+    y = ruleBlock('05', '试炼祝福，仅强化己方', `进入疾风或铁壁试炼前，从三种祝福中选择一种，整局生效。经典对决不使用祝福。\n\n${blessingRules}`, y + 4);
+    y = ruleBlock('06', '护盾先吸收，生命后承伤', '铁壁试炼会赋予双方开局护盾。普通攻击与技能伤害都先由护盾吸收，超出护盾的部分才扣除生命。卡牌上的护盾数值会随承伤减少。经典对决与疾风试炼不额外获得开局护盾。', y + 4);
+    y = ruleBlock('07', '赢下对决，争取三星', '三个目标分别是：赢得本场对决、在战场限定行动次数内获胜、取胜时至少一位队员保有半数生命。速战目标随战场调整：经典 9 次、疾风 8 次、铁壁 12 次己方行动。胜利后每达成一项目标获得一星，最多三星。战斗失利时不获得星级，结算为零星。', y + 4);
     y = button('明白了，返回', { type: 'back' }, 20, y + 6);
     return footer(y);
   }
@@ -395,7 +515,7 @@ function createRenderer({
     art('assets/hero.png', 20, y, 335, 168);
     y += 188;
     y += text(app.name || '余烬对决', 20, y, 335, { size: 29, lineHeight: 41, weight: 'bold', color: COLORS.goldLight, family: 'serif', align: 'center' });
-    y += text(`版本 ${app.version || '1.0.0'}`, 20, y + 8, 335, { size: 13, color: COLORS.quiet, align: 'center' }) + 34;
+    y += text(`版本 ${app.version || '1.1.0'}`, 20, y + 8, 335, { size: 13, color: COLORS.quiet, align: 'center' }) + 34;
     y = sectionHeading('离线对决', y);
     y += text('三位同伴，三名敌人。没有随机抽牌，用有限的生命与每局一次的技能，寻找最合适的出手顺序。', 20, y, 335,
       { size: 14, lineHeight: 25, color: COLORS.muted }) + 28;

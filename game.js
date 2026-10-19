@@ -4,9 +4,33 @@
   const PLAYER = 0;
   const AI = 1;
   const AI_SKILL_MINIMUM_ADVANTAGE = 10;
+  const BATTLE_MODES = [
+    { id: 'classic', name: '经典对决', description: '原始阵容与数值，不携带祝福。', attackBonus: 0, initialShield: 0 },
+    { id: 'swift', name: '疾风试炼', description: '双方卡牌普通攻击 +6，选择一项祝福迎接快节奏对决。', attackBonus: 6, initialShield: 0 },
+    { id: 'bastion', name: '铁壁试炼', description: '双方卡牌开局获得 18 点护盾，伤害先消耗护盾，选择一项祝福出战。', attackBonus: 0, initialShield: 18 },
+  ];
+  const BLESSINGS = [
+    { id: 'blade', name: '利刃', description: '己方所有卡牌普通攻击 +5。', attackBonus: 5, healthBonus: 0, skillDamageBonus: 0 },
+    { id: 'vitality', name: '活力', description: '己方所有卡牌生命与生命上限 +20。', attackBonus: 0, healthBonus: 20, skillDamageBonus: 0 },
+    { id: 'arcane', name: '灵火', description: '己方有主动技能的卡牌，技能伤害 +8。', attackBonus: 0, healthBonus: 0, skillDamageBonus: 8 },
+  ];
 
-  function createGame() {
-    return {
+  function getBattleModes() {
+    return BATTLE_MODES.map((mode) => ({ ...mode }));
+  }
+
+  function getBlessings() {
+    return BLESSINGS.map((blessing) => ({ ...blessing }));
+  }
+
+  function createGame({ modeId = 'classic', blessingId = 'blade' } = {}) {
+    const mode = BATTLE_MODES.find((candidate) => candidate.id === modeId) || BATTLE_MODES[0];
+    const blessing = mode.id === 'classic'
+      ? null
+      : BLESSINGS.find((candidate) => candidate.id === blessingId) || BLESSINGS[0];
+    const game = {
+      modeId: mode.id,
+      blessingId: blessing ? blessing.id : null,
       players: [
         {
           name: '玩家A',
@@ -48,6 +72,21 @@
       gameOver: false,
       winnerIdx: null,
     };
+    game.players.forEach((player, playerIndex) => {
+      player.cards.forEach((card) => {
+        card.attack += mode.attackBonus;
+        card.shield = mode.initialShield;
+        if (playerIndex !== PLAYER || !blessing) return;
+        card.attack += blessing.attackBonus;
+        card.hp += blessing.healthBonus;
+        card.maxHp += blessing.healthBonus;
+        if (card.skill && blessing.skillDamageBonus > 0) {
+          card.skill.damage += blessing.skillDamageBonus;
+          card.skill.description = card.skill.description.replace(/\d+(?= 点伤害)/, String(card.skill.damage));
+        }
+      });
+    });
+    return game;
   }
 
   function isCardAlive(card) {
@@ -62,6 +101,19 @@
     return getAliveCards(player).length > 0;
   }
 
+  function effectiveHealth(card) {
+    return card.hp + Math.max(0, card.shield || 0);
+  }
+
+  function applyDamage(card, rawDamage) {
+    const shield = Math.max(0, card.shield || 0);
+    const blockedDamage = Math.min(shield, rawDamage);
+    card.shield = shield - blockedDamage;
+    const damage = rawDamage - blockedDamage;
+    card.hp = Math.max(0, card.hp - damage);
+    return blockedDamage > 0 ? { damage, blockedDamage } : { damage };
+  }
+
   function selectAttacker(game, playerIdx, cardIdx) {
     if (game.gameOver || playerIdx !== PLAYER || game.currentPlayerIdx !== PLAYER) return false;
     if (!Number.isInteger(cardIdx) || !isCardAlive(game.players[PLAYER].cards[cardIdx])) return false;
@@ -73,7 +125,7 @@
   function applyAttack(game, attackerPlayerIdx, attackerCardIdx, targetPlayerIdx, targetCardIdx) {
     const attacker = game.players[attackerPlayerIdx].cards[attackerCardIdx];
     const target = game.players[targetPlayerIdx].cards[targetCardIdx];
-    target.hp = Math.max(0, target.hp - attacker.attack);
+    const damageEvent = applyDamage(target, attacker.attack);
 
     return {
       type: 'attack',
@@ -81,7 +133,7 @@
       attackerCardIdx,
       targetPlayerIdx,
       targetCardIdx,
-      damage: attacker.attack,
+      ...damageEvent,
       killedCardName: isCardAlive(target) ? null : target.name,
     };
   }
@@ -97,7 +149,7 @@
   function applySkill(skill, attackerPlayerIdx, attackerCardIdx, targetPlayerIdx, targets) {
     skill.used = true;
     return targets.map(({ card, cardIdx }) => {
-      card.hp = Math.max(0, card.hp - skill.damage);
+      const damageEvent = applyDamage(card, skill.damage);
       return {
         type: 'skill',
         skillName: skill.name,
@@ -105,7 +157,7 @@
         attackerCardIdx,
         targetPlayerIdx,
         targetCardIdx: cardIdx,
-        damage: skill.damage,
+        ...damageEvent,
         killedCardName: isCardAlive(card) ? null : card.name,
       };
     });
@@ -174,13 +226,13 @@
     if (aiCards.length === 0 || playerCards.length === 0) return [];
 
     const attacker = chooseCard(aiCards, (card) => card.attack, true);
-    const target = chooseCard(playerCards, (card) => card.hp, false);
+    const target = chooseCard(playerCards, effectiveHealth, false);
     const attackerCardIdx = game.players[AI].cards.indexOf(attacker);
     const targetCardIdx = game.players[PLAYER].cards.indexOf(target);
-    const ordinaryEffectiveDamage = Math.min(attacker.attack, target.hp);
+    const ordinaryEffectiveDamage = Math.min(attacker.attack, effectiveHealth(target));
     const skillUser = aiCards.find((card) => card.skill && !card.skill.used && card.skill.targetMode === 'all');
     const skillEffectiveDamage = skillUser && playerCards.length > 1
-      ? playerCards.reduce((damage, card) => damage + Math.min(card.hp, skillUser.skill.damage), 0)
+      ? playerCards.reduce((damage, card) => damage + Math.min(effectiveHealth(card), skillUser.skill.damage), 0)
       : 0;
     const shouldUseSkill = skillUser
       && playerCards.length > 1
@@ -203,6 +255,8 @@
 
   const gameApi = {
     createGame,
+    getBattleModes,
+    getBlessings,
     isCardAlive,
     isPlayerAlive,
     selectAttacker,

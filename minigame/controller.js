@@ -1,8 +1,13 @@
 'use strict';
 
 function createController({ rules, catalog, schedule = setTimeout, cancel = clearTimeout, onChange = () => {} }) {
-  const openingGame = rules.createGame();
-  let game = openingGame;
+  const battleModes = rules.getBattleModes();
+  const blessings = rules.getBlessings();
+  let selectedModeId = 'classic';
+  // The preference survives visits to classic mode, where no blessing applies.
+  let selectedBlessingId = 'blade';
+  let previewGame = rules.createGame({ modeId: selectedModeId, blessingId: selectedBlessingId });
+  let game = previewGame;
   let screen = 'home';
   let visible = true;
   let destroyed = false;
@@ -24,7 +29,10 @@ function createController({ rules, catalog, schedule = setTimeout, cancel = clea
   }
 
   function describeCard(card) {
-    const description = { ...card, ...presentation(card.name) };
+    const shield = card.shield || 0;
+    const shieldLabel = shield > 0 ? `护盾${shield}` : '';
+    const aria = `${card.name}，攻击 ${card.attack}，生命 ${card.hp}/${card.maxHp}${shieldLabel ? `，${shieldLabel}` : ''}`;
+    const description = { ...card, ...presentation(card.name), shield, shieldLabel, aria, ariaLabel: aria };
     if (card.skill) description.skill = { ...card.skill };
     return description;
   }
@@ -40,7 +48,7 @@ function createController({ rules, catalog, schedule = setTimeout, cancel = clea
     const canTarget = canAct() && playerIndex === 1 && game.selectedCardIdx !== null && card.hp > 0;
     const skillStatus = !card.skill ? '' : card.skill.used ? '已用' : card.hp > 0 && !game.gameOver ? '可用' : '不可用';
     const targetLabel = skillTargeting ? '技能目标' : '可攻击';
-    const aria = `${card.name}，攻击 ${card.attack}，生命 ${card.hp}/${card.maxHp}${card.hp <= 0 ? '，已倒下' : isSelected ? '，已选为攻击者' : canTarget ? `，可选为${skillTargeting ? '技能' : '攻击'}目标` : canSelect ? '，可选为攻击者' : ''}${card.skill ? `，技能 ${card.skill.name} ${skillStatus}` : ''}`;
+    const aria = `${card.name}，攻击 ${card.attack}，生命 ${card.hp}/${card.maxHp}${card.shield > 0 ? `，护盾${card.shield}` : ''}${card.hp <= 0 ? '，已倒下' : isSelected ? '，已选为攻击者' : canTarget ? `，可选为${skillTargeting ? '技能' : '攻击'}目标` : canSelect ? '，可选为攻击者' : ''}${card.skill ? `，技能 ${card.skill.name} ${skillStatus}` : ''}`;
     return {
       ...describeCard(card), cardIndex, hpPercent, isDead: card.hp <= 0, isSelected, canSelect, canTarget,
       aria, ariaLabel: aria, targetLabel,
@@ -51,20 +59,31 @@ function createController({ rules, catalog, schedule = setTimeout, cancel = clea
   }
 
   function getStatus() {
+    const mode = battleModes.find((entry) => entry.id === selectedModeId);
+    const blessing = blessings.find((entry) => entry.id === selectedBlessingId);
+    const modeStatus = {
+      selectedModeId, selectedBlessingId,
+      isTrial: selectedModeId !== 'classic',
+      modeName: mode.name,
+      blessingName: selectedModeId === 'classic' ? '无祝福' : blessing.name,
+      modeDescription: mode.description,
+    };
     if (game.gameOver) {
       return {
+        ...modeStatus,
         turnLabel: '战斗结束', statusText: `${game.players[game.winnerIdx].name} 获胜`,
         statusTone: game.winnerIdx === 0 ? 'victory' : 'defeat',
       };
     }
     if (game.currentPlayerIdx === 1) {
-      return { turnLabel: '对手回合', statusText: '对手正在思考…', statusTone: 'waiting' };
+      return { ...modeStatus, turnLabel: '对手回合', statusText: '对手正在思考…', statusTone: 'waiting' };
     }
     const selected = game.players[0].cards[game.selectedCardIdx];
     if (!selected) {
-      return { turnLabel: '你的回合', statusText: '选择一张己方卡牌作为攻击者', statusTone: 'ready' };
+      return { ...modeStatus, turnLabel: '你的回合', statusText: '选择一张己方卡牌作为攻击者', statusTone: 'ready' };
     }
     return {
+      ...modeStatus,
       turnLabel: '你的回合', statusTone: 'target',
       statusText: skillTargeting && selected.skill
         ? `选择对手目标释放${selected.skill.name}`
@@ -84,16 +103,30 @@ function createController({ rules, catalog, schedule = setTimeout, cancel = clea
       }
       : null;
     const won = game.winnerIdx === 0;
+    const survivors = game.players[0].cards.filter((card) => card.hp > 0).length;
+    const victory = game.gameOver && won;
+    const actionLimit = selectedModeId === 'swift' ? 8 : selectedModeId === 'bastion' ? 12 : 9;
+    const hasHealthySurvivor = game.players[0].cards.some((card) => card.hp > 0 && card.hp >= card.maxHp / 2);
+    const objectives = [
+      { id: 'victory', label: '赢得本场对决', achieved: victory },
+      { id: 'swift', label: `${actionLimit}次行动内取胜`, achieved: victory && playerActions <= actionLimit },
+      { id: 'survivors', label: '取胜时至少一人保有半数生命', achieved: victory && hasHealthySurvivor },
+    ];
     const result = game.gameOver
       ? {
         won, title: won ? '战斗胜利' : '战斗失利',
         subtitle: won ? '你击倒了对手的全部卡牌。' : '你的队伍已全部倒下，调整出手顺序，再战一局。',
-        rounds: Math.max(1, playerActions), survivors: game.players[0].cards.filter((card) => card.hp > 0).length,
+        rounds: Math.max(1, playerActions), survivors,
+        stars: objectives.filter((objective) => objective.achieved).length,
+        objectives: objectives.map((objective) => ({ ...objective })),
         ...statistics,
       }
       : null;
     return {
       screen, roundNumber, playerActions, ...statistics, ...getStatus(),
+      modes: battleModes.map(({ id, name, description }) => ({ id, name, description, selected: id === selectedModeId })),
+      blessings: blessings.map(({ id, name, description }) => ({ id, name, description, selected: selectedModeId !== 'classic' && id === selectedBlessingId })),
+      objectives,
       gameOver: game.gameOver, skillTargeting, selectedSkill,
       selectedCardDetail: selected ? describeCard(selected) : null,
       players: game.players.map((player, playerIndex) => ({
@@ -101,9 +134,9 @@ function createController({ rules, catalog, schedule = setTimeout, cancel = clea
         cards: player.cards.map((card, cardIndex) => decorateCard(card, playerIndex, cardIndex)),
       })).reverse(),
       logs: logs.map((entry) => ({ ...entry })), result,
-      teamCards: openingGame.players[0].cards.map(describeCard),
-      enemyCards: openingGame.players[1].cards.map(describeCard),
-      skills: openingGame.players.reduce((skills, player) => {
+      teamCards: previewGame.players[0].cards.map(describeCard),
+      enemyCards: previewGame.players[1].cards.map(describeCard),
+      skills: previewGame.players.reduce((skills, player) => {
         player.cards.forEach((card) => {
           if (card.skill) skills.push({ cardName: card.name, name: card.skill.name, description: card.skill.description });
         });
@@ -155,7 +188,10 @@ function createController({ rules, catalog, schedule = setTimeout, cancel = clea
           if (event.type === 'skill') usedSkills.add(`${event.attackerCardIdx}:${event.skillName}`);
         } else statistics.damageTaken += damage;
         const action = event.type === 'skill' ? `施放 ${event.skillName} 攻击` : '攻击';
-        addLog(`${attacker.name} 的 ${attackerCard.name} ${action} ${target.name} 的 ${targetCard.name}，造成 ${event.damage} 点伤害。`, event.killedCardName ? 'kill' : 'hit');
+        const impact = event.blockedDamage > 0
+          ? `护盾吸收 ${event.blockedDamage} 点伤害，造成 ${damage} 点生命伤害。`
+          : `造成 ${event.damage} 点伤害。`;
+        addLog(`${attacker.name} 的 ${attackerCard.name} ${action} ${target.name} 的 ${targetCard.name}，${impact}`, event.killedCardName ? 'kill' : 'hit');
         if (event.killedCardName) addLog(`${event.killedCardName} 被击倒！`, 'kill');
       } else if (event.type === 'victory') {
         addLog(`战斗结束，${game.players[event.winnerIdx].name} 获胜！`, 'result');
@@ -185,7 +221,7 @@ function createController({ rules, catalog, schedule = setTimeout, cancel = clea
   function startBattle() {
     stopAi();
     battleVersion += 1;
-    game = rules.createGame();
+    game = rules.createGame({ modeId: selectedModeId, blessingId: selectedBlessingId });
     screen = 'battle';
     skillTargeting = false;
     roundNumber = 1;
@@ -194,6 +230,27 @@ function createController({ rules, catalog, schedule = setTimeout, cancel = clea
     logs = [];
     logSequence = 0;
     addLog('选择你的卡牌，再选择对手目标发起攻击。', 'info');
+  }
+
+  function selectBattleOption(action) {
+    if (screen !== 'home') return;
+    if (action.type === 'mode') {
+      if (!battleModes.some((mode) => mode.id === action.modeId) || action.modeId === selectedModeId) return;
+      selectedModeId = action.modeId;
+    } else {
+      if (!blessings.some((blessing) => blessing.id === action.blessingId) || action.blessingId === selectedBlessingId) return;
+      selectedBlessingId = action.blessingId;
+    }
+    stopAi();
+    battleVersion += 1;
+    previewGame = rules.createGame({ modeId: selectedModeId, blessingId: selectedBlessingId });
+    game = previewGame;
+    skillTargeting = false;
+    roundNumber = 1;
+    playerActions = 0;
+    statistics = { damageDealt: 0, damageTaken: 0, skillsUsed: 0 };
+    logs = [];
+    logSequence = 0;
   }
 
   function moveTo(nextScreen) {
@@ -240,6 +297,8 @@ function createController({ rules, catalog, schedule = setTimeout, cancel = clea
   function dispatch(action = {}) {
     if (destroyed) return getView();
     switch (action && action.type) {
+      case 'mode':
+      case 'blessing': selectBattleOption(action); break;
       case 'start':
       case 'reset': startBattle(); break;
       case 'home': moveTo('home'); break;

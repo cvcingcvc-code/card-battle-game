@@ -1,6 +1,6 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "name": "余烬对决",
   "target": "game",
-  "description": "微信小游戏离线单人三对三卡牌对战"
+  "description": "微信小游戏离线三对三卡牌对战，含战场试炼、战前祝福与星级目标"
 }
